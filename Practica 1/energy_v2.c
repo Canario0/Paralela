@@ -135,13 +135,14 @@ int main(int argc, char *argv[]) {
 	Storm storms[ num_storms ];
 
 	/* 1.2. Leer datos de storms */
-	//#pragma omp parallel for shared(storms, argv) private (i) firstprivate(argc) default(none) no hace na
+	#pragma omp parallel for 
 	for( i=2; i<argc; i++ ) 
 		storms[i-2] = read_storm_file( argv[i] );
 
 	/* 1.3. Inicializar maximos a cero */
 	float maximos[ num_storms ];
 	int posiciones[ num_storms ];
+	#pragma omp parallel for
 	for (i=0; i<num_storms; i++) {
 		maximos[i] = 0.0f;
 		//posiciones[i] = 0;
@@ -159,6 +160,7 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr,"Error: Allocating the layer memory\n");
 		exit( EXIT_FAILURE );
 	}
+	#pragma omp parallel for
 	for( k=0; k<layer_size; k++ ) layer[k] = 0.0f;
 	//for( k=0; k<layer_size; k++ ) layer_copy[k] = 0.0f;
 	/* 4. Fase de bombardeos */
@@ -174,7 +176,7 @@ int main(int argc, char *argv[]) {
 			int umbral=1;
 			#pragma omp parallel shared(posicion) firstprivate(umbral)
 			/* Para cada posicion de la capa */
-			#pragma omp for nowait //if(floor(posicion/12)>=1)schedule(floor(posicion/12))
+			#pragma omp for 
 			for (k=posicion; k>=0; k--){
 				if(umbral){
 					umbral = actualiza( layer, k, posicion, energia );
@@ -182,7 +184,7 @@ int main(int argc, char *argv[]) {
 				
 			}
 			umbral=1;
-			#pragma omp for nowait
+			#pragma omp for 
 			for( k=posicion+1; k<layer_size; k++ ) {
 				/* Actualizar posicion */
 				if(umbral){
@@ -193,6 +195,7 @@ int main(int argc, char *argv[]) {
 
 		/* 4.2. Relajacion entre tormentas de particulas */
 		/* 4.2.1. Copiar valores a capa auxiliar */
+		#pragma omp parallel for
 		for( k=0; k<layer_size; k++ ) 
 			layer_copy[k] = layer[k];
 
@@ -201,6 +204,7 @@ int main(int argc, char *argv[]) {
 			layer[k] = ( layer_copy[k-1] + layer_copy[k] + layer_copy[k+1] ) / 3;
 
 		/* 4.3. Localizar maximo */
+		#pragma omp parallel for
 		for( k=1; k<layer_size-1; k++ ) {
 			/* Comprobar solo maximos locales */
 			if ( layer[k] > layer[k-1] && layer[k] > layer[k+1] ) {
