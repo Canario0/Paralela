@@ -184,7 +184,7 @@ int main(int argc, char *argv[]) {
 			for( k=posicion+1; k<layer_size ; k++ ) {
 				/* Actualizar posicion */
 				if(umbral)
-				umbral = actualiza( layer, k, posicion, energia );
+					umbral = actualiza( layer, k, posicion, energia );
 			}
 		}
 
@@ -234,9 +234,5 @@ int main(int argc, char *argv[]) {
 	/* 8. Liberar recursos */	
 	for( i=0; i<argc-2; i++ )
 		free( storms[i].posval );
-
-	/* 7.1. Tiempo total de la computacion */
-	printf("Time: %lf\n", ttotal );
-	/* 9. Final correcto */
 	return 0;
 }
