@@ -6,13 +6,11 @@
  *
  * (c) 2018 Arturo Gonzalez Escribano
  * Version: 2.0 (Atenuacion no lineal)
- * 43s
  */
 #include<stdio.h>
 #include<stdlib.h>
 #include<math.h>
 #include"cputils.h"
-#include <omp.h>
 
 #define PI	3.14159f
 #define UMBRAL	0.001f
@@ -22,30 +20,6 @@ typedef struct {
 	int size;
 	int *posval;
 } Storm;
-
-/* ESTA FUNCION PUEDE SER MODIFICADA */
-/* Funcion para actualizar una posicion de la capa */
-int actualiza( float *layer, int k, int pos, float energia ) {
-	/* 1. Calcular valor absoluto de la distancia entre el
-		punto de impacto y el punto k de la capa */
-	int distancia = pos - k;
-	if ( distancia < 0 ) distancia = - distancia;
-
-	/* 2. El punto de impacto tiene distancia 1 */
-	distancia = distancia + 1;
-
-	/* 3. Raiz cuadrada de la distancia */
-	float atenuacion = sqrtf( (float)distancia );
-
-	/* 4. Calcular energia atenuada */
-	float energia_k = energia / atenuacion;
-
-	/* 5. No sumar si el valor absoluto es menor que umbral */
-	if ( energia_k >= UMBRAL || energia_k <= -UMBRAL ){
-		layer[k] = layer[k] + energia_k;
-		return 1;}
-	return 0;
-}
 
 
 /* FUNCIONES AUXILIARES: No se utilizan dentro de la medida de tiempo, dejar como estan */
@@ -135,17 +109,15 @@ int main(int argc, char *argv[]) {
 	Storm storms[ num_storms ];
 
 	/* 1.2. Leer datos de storms */
-	#pragma omp parallel for 
 	for( i=2; i<argc; i++ ) 
 		storms[i-2] = read_storm_file( argv[i] );
 
 	/* 1.3. Inicializar maximos a cero */
 	float maximos[ num_storms ];
 	int posiciones[ num_storms ];
-	#pragma omp parallel for
 	for (i=0; i<num_storms; i++) {
 		maximos[i] = 0.0f;
-		//posiciones[i] = 0;
+		posiciones[i] = 0;
 	}
 
 	/* 2. Inicia medida de tiempo */
@@ -160,56 +132,63 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr,"Error: Allocating the layer memory\n");
 		exit( EXIT_FAILURE );
 	}
-	#pragma omp parallel for
-	for( k=0; k<layer_size; k++ ) layer[k] = 0.0f;
-	//for( k=0; k<layer_size; k++ ) layer_copy[k] = 0.0f;
+
+	#pragma omp parallel for private(k)
+	for( k=0; k<layer_size; k++ )layer[k] = 0.0f;
+	#pragma omp parallel for private(k)
+	for( k=0; k<layer_size; k++ )layer_copy[k] = 0.0f;
+	 	 
+	
 	/* 4. Fase de bombardeos */
 	for( i=0; i<num_storms; i++) {
 
 		/* 4.1. Suma energia de impactos */
 		/* Para cada particula */
+		
 		for( j=0; j<storms[i].size; j++ ) {
 			/* Energia de impacto (en milesimas) */
 			float energia = (float)storms[i].posval[j*2+1] / 1000;
 			/* Posicion de impacto */
 			int posicion = storms[i].posval[j*2];
-			int umbral=1;
-			#pragma omp parallel shared(posicion) firstprivate(umbral)
+
 			/* Para cada posicion de la capa */
-			#pragma omp if(posicion >=1000) for 
-			for (k=posicion; k>=0; k--){
-				if(umbral){
-					umbral = actualiza( layer, k, posicion, energia );
-				}
-				
-			}
-			umbral=1;
-			#pragma omp if(posicion >=1000) for 
-			for( k=posicion+1; k<layer_size; k++ ) {
+			#pragma omp parallel for private(k) 
+			for( k=0; k<layer_size; k++ ) {
 				/* Actualizar posicion */
-				if(umbral){
-					umbral = actualiza( layer, k, posicion, energia );
-				}
+					/* 1. Calcular valor absoluto de la distancia entre el
+						punto de impacto y el punto k de la capa */
+					int distancia = posicion - k;
+					if ( distancia < 0 ) distancia = - distancia;
+
+					/* 2. El punto de impacto tiene distancia 1 */
+					distancia = distancia + 1;
+
+					/* 3. Raiz cuadrada de la distancia */
+					float atenuacion = sqrtf( (float)distancia );
+
+					/* 4. Calcular energia atenuada */
+					float energia_k = energia / atenuacion;
+
+					/* 5. No sumar si el valor absoluto es menor que umbral */
+					if ( energia_k >= UMBRAL || energia_k <= -UMBRAL )
+						layer[k] = layer[k] + energia_k;
 			}
 		}
 
 		/* 4.2. Relajacion entre tormentas de particulas */
 		/* 4.2.1. Copiar valores a capa auxiliar */
-		#pragma omp parallel for
+		#pragma omp parallel for private(k) firstprivate(layer_size, layer_copy, layer)
 		for( k=0; k<layer_size; k++ ) 
 			layer_copy[k] = layer[k];
 
 		/* 4.2.2. Actualizar capa, menos los extremos, usando valores del array auxiliar */
-		#pragma omp parallel for
+		#pragma omp parallel for private(k) firstprivate(layer_size, layer_copy, layer)
 		for( k=1; k<layer_size-1; k++ )
 			layer[k] = ( layer_copy[k-1] + layer_copy[k] + layer_copy[k+1] ) / 3;
 
 		/* 4.3. Localizar maximo */
-		#pragma omp parallel for
 		for( k=1; k<layer_size-1; k++ ) {
 			/* Comprobar solo maximos locales */
-			if ( layer[k] > maximos[i]&& layer[k] > layer[k-1] && layer[k] > layer[k+1] && layer[k] > maximos[i]  ) 
-			#pragma omp critical
 			if ( layer[k] > layer[k-1] && layer[k] > layer[k+1] ) {
 				if ( layer[k] > maximos[i] ) {
 					maximos[i] = layer[k];
@@ -243,8 +222,6 @@ int main(int argc, char *argv[]) {
 	for( i=0; i<argc-2; i++ )
 		free( storms[i].posval );
 
-	/* 7.1. Tiempo total de la computacion */
-	printf("Time: %lf\n", ttotal );
 	/* 9. Final correcto */
 	return 0;
 }
