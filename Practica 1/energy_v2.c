@@ -200,6 +200,7 @@ int main(int argc, char *argv[]) {
 			layer_copy[k] = layer[k];
 
 		/* 4.2.2. Actualizar capa, menos los extremos, usando valores del array auxiliar */
+		#pragma omp parallel for
 		for( k=1; k<layer_size-1; k++ )
 			layer[k] = ( layer_copy[k-1] + layer_copy[k] + layer_copy[k+1] ) / 3;
 
@@ -207,6 +208,8 @@ int main(int argc, char *argv[]) {
 		#pragma omp parallel for
 		for( k=1; k<layer_size-1; k++ ) {
 			/* Comprobar solo maximos locales */
+			if ( layer[k] > maximos[i]&& layer[k] > layer[k-1] && layer[k] > layer[k+1] ) 
+			#pragma omp critical
 			if ( layer[k] > layer[k-1] && layer[k] > layer[k+1] ) {
 				if ( layer[k] > maximos[i] ) {
 					maximos[i] = layer[k];
