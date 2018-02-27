@@ -164,6 +164,7 @@ int main(int argc, char *argv[]) {
 	for( k=0; k<layer_size; k++ ) layer[k] = 0.0f;
 	//for( k=0; k<layer_size; k++ ) layer_copy[k] = 0.0f;
 	/* 4. Fase de bombardeos */
+	#pragma omp parallel for private(i,j,k)
 	for( i=0; i<num_storms; i++) {
 
 		/* 4.1. Suma energia de impactos */
@@ -174,38 +175,29 @@ int main(int argc, char *argv[]) {
 			/* Posicion de impacto */
 			int posicion = storms[i].posval[j*2];
 			int umbral=1;
-			#pragma omp parallel shared(posicion) firstprivate(umbral)
-			/* Para cada posicion de la capa */
-			#pragma omp if(posicion >=1000) for 
+
 			for (k=posicion; k>=0; k--){
-				if(umbral){
+				if(umbral)
 					umbral = actualiza( layer, k, posicion, energia );
-				}
-				
 			}
 			umbral=1;
-			#pragma omp if(posicion >=1000) for 
-			for( k=posicion+1; k<layer_size; k++ ) {
+			for( k=posicion+1; k<layer_size ; k++ ) {
 				/* Actualizar posicion */
-				if(umbral){
-					umbral = actualiza( layer, k, posicion, energia );
-				}
+				if(umbral)
+				umbral = actualiza( layer, k, posicion, energia );
 			}
 		}
 
 		/* 4.2. Relajacion entre tormentas de particulas */
 		/* 4.2.1. Copiar valores a capa auxiliar */
-		#pragma omp parallel for
 		for( k=0; k<layer_size; k++ ) 
 			layer_copy[k] = layer[k];
 
 		/* 4.2.2. Actualizar capa, menos los extremos, usando valores del array auxiliar */
-		#pragma omp parallel for
 		for( k=1; k<layer_size-1; k++ )
 			layer[k] = ( layer_copy[k-1] + layer_copy[k] + layer_copy[k+1] ) / 3;
 
 		/* 4.3. Localizar maximo */
-		#pragma omp parallel for
 		for( k=1; k<layer_size-1; k++ ) {
 			/* Comprobar solo maximos locales */
 			if ( layer[k] > maximos[i]&& layer[k] > layer[k-1] && layer[k] > layer[k+1] && layer[k] > maximos[i]  ) 
