@@ -185,7 +185,7 @@ int main(int argc, char *argv[]) {
 					float energia_k = energia / atenuacion;
 
 					/* 5. No sumar si el valor absoluto es menor que umbral */
-					if ( energia_k >= UMBRAL){
+					if ( energia_k >= UMBRAL)//{
 						layer[k] = layer[k] + energia_k;
 					/*}else{
 
