@@ -152,21 +152,23 @@ int main(int argc, char *argv[]) {
 			float energia = (float)storms[i].posval[j*2+1] / 1000;
 			/* Posicion de impacto */
 			int posicion = storms[i].posval[j*2];
+
 			
-			//printf("Prueba %lf %d\n", ((posicion - (energia*energia)/0.000001)+1), posicion);
-			int inicio = floor(posicion - (((energia*energia)/0.000001)+1));
-			inicio = (inicio<0)?0:inicio;
-			int fin = floor(posicion + (((energia*energia)/0.000001)+1));
-			fin = (fin > layer_size)?layer_size:fin;
-			//printf("Prueba %lf %d\n", ((posicion + (energia*energia)/0.000001)+1), posicion);
-			//printf("%d, %d\n",inicio,fin);
+			/*int inicio = (posicion - ((1000000*(energia*energia))-1));
+			
+
+			int fin = (posicion + (((energia*energia)*1000000)-1));*/
+			
 			/* Para cada posicion de la capa */
-			//#pragma omp parallel for private(k)
-			/*for( k=0; k<layer_size; k++ ) {
-				actualiza( layer, k, posicion, energia );
-			}*/
+
+			//int k2= posicion+1-1000000*(energia*energia);
+			int inicio = posicion + 1 - 1000000*(energia*energia);
+			int fin = posicion + 1 + 1000000*(energia*energia);
+			inicio = (inicio<0)?0:(inicio);
+			fin = (fin>layer_size)?layer_size:(fin);
+
 			#pragma omp parallel for private(k) 
-			for( k=inicio; k<fin; k++ ) {
+			for( k=inicio ; k< fin; k++ ) {
 				/* Actualizar posicion */
 					/* 1. Calcular valor absoluto de la distancia entre el
 						punto de impacto y el punto k de la capa */
@@ -183,8 +185,12 @@ int main(int argc, char *argv[]) {
 					float energia_k = energia / atenuacion;
 
 					/* 5. No sumar si el valor absoluto es menor que umbral */
-					if ( energia_k >= UMBRAL || energia_k <= -UMBRAL )
+					if ( energia_k >= UMBRAL){
 						layer[k] = layer[k] + energia_k;
+					/*}else{
+
+						printf("%d,%d,%d\n",k,inicio,fin);
+					}*/
 			}
 		}
 
