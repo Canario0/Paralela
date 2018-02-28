@@ -153,14 +153,20 @@ int main(int argc, char *argv[]) {
 			/* Posicion de impacto */
 			int posicion = storms[i].posval[j*2];
 			
-			
+			//printf("Prueba %lf %d\n", ((posicion - (energia*energia)/0.000001)+1), posicion);
+			int inicio = floor(posicion - (((energia*energia)/0.000001)+1));
+			inicio = (inicio<0)?0:inicio;
+			int fin = floor(posicion + (((energia*energia)/0.000001)+1));
+			fin = (fin > layer_size)?layer_size:fin;
+			//printf("Prueba %lf %d\n", ((posicion + (energia*energia)/0.000001)+1), posicion);
+			//printf("%d, %d\n",inicio,fin);
 			/* Para cada posicion de la capa */
 			//#pragma omp parallel for private(k)
 			/*for( k=0; k<layer_size; k++ ) {
 				actualiza( layer, k, posicion, energia );
 			}*/
 			#pragma omp parallel for private(k) 
-			for( k=0; k<layer_size; k++ ) {
+			for( k=inicio; k<fin; k++ ) {
 				/* Actualizar posicion */
 					/* 1. Calcular valor absoluto de la distancia entre el
 						punto de impacto y el punto k de la capa */
