@@ -136,10 +136,12 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr,"Error: Allocating the layer memory\n");
 		exit( EXIT_FAILURE );
 	}
-	for( k=0; k<layer_size; k++ ){
+	#pragma omp parallel for
+	for( k=0; k<layer_size; k++ )
 		layer[k] = 0.0f;
+	#pragma omp parallel for
+	for( k=0; k<layer_size; k++ )
 		layer_copy[k] = 0.0f;
-	} 
 	//for( k=0; k<layer_size; k++ )
 	
 	/* 4. Fase de bombardeos */
@@ -147,28 +149,72 @@ int main(int argc, char *argv[]) {
 
 		/* 4.1. Suma energia de impactos */
 		/* Para cada particula */
+
+
 		for( j=0; j<storms[i].size; j++ ) {
 			/* Energia de impacto (en milesimas) */
 			float energia = (float)storms[i].posval[j*2+1] / 1000;
 			/* Posicion de impacto */
 			int posicion = storms[i].posval[j*2];
-
-			
-			/*int inicio = (posicion - ((1000000*(energia*energia))-1));
-			
-
-			int fin = (posicion + (((energia*energia)*1000000)-1));*/
 			
 			/* Para cada posicion de la capa */
 
-			//int k2= posicion+1-1000000*(energia*energia);
 			int inicio = posicion + 1 - 1000000*(energia*energia);
 			int fin = posicion + 1 + 1000000*(energia*energia);
 			inicio = (inicio<0)?0:(inicio);
 			fin = (fin>layer_size)?layer_size:(fin);
 
+			int k1 = inicio;
+			while (k1<fin){
+				/* Actualizar posicion */
+					/* 1. Calcular valor absoluto de la distancia entre el
+						punto de impacto y el punto k de la capa */
+					int distancia = posicion - k1;
+					if ( distancia < 0 ) distancia = - distancia;
+
+					/* 2. El punto de impacto tiene distancia 1 */
+					distancia = distancia + 1;
+
+					/* 3. Raiz cuadrada de la distancia */
+					float atenuacion = sqrtf( (float)distancia );
+
+					/* 4. Calcular energia atenuada */
+					float energia_k = energia / atenuacion;
+
+					/* 5. No sumar si el valor absoluto es menor que umbral */
+					if ( energia_k >= UMBRAL){
+						layer[k1] = layer[k1] + energia_k;
+						k1++;
+						break;
+					}
+					k1++;
+			}
+			int k2 = fin;
+			while (k2>inicio){
+				/* Actualizar posicion */
+					/* 1. Calcular valor absoluto de la distancia entre el
+						punto de impacto y el punto k de la capa */
+					int distancia = posicion - k2;
+					if ( distancia < 0 ) distancia = - distancia;
+
+					/* 2. El punto de impacto tiene distancia 1 */
+					distancia = distancia + 1;
+
+					/* 3. Raiz cuadrada de la distancia */
+					float atenuacion = sqrtf( (float)distancia );
+
+					/* 4. Calcular energia atenuada */
+					float energia_k = energia / atenuacion;
+
+					/* 5. No sumar si el valor absoluto es menor que umbral */
+					if ( energia_k >= UMBRAL){
+						layer[k2] = layer[k2] + energia_k;
+						break;
+					}
+					k2--;
+			}
 			#pragma omp parallel for private(k) 
-			for( k=inicio ; k< fin; k++ ) {
+			for( k=k1 ; k< k2; k++ ) {
 				/* Actualizar posicion */
 					/* 1. Calcular valor absoluto de la distancia entre el
 						punto de impacto y el punto k de la capa */
@@ -185,12 +231,7 @@ int main(int argc, char *argv[]) {
 					float energia_k = energia / atenuacion;
 
 					/* 5. No sumar si el valor absoluto es menor que umbral */
-					if ( energia_k >= UMBRAL)//{
 						layer[k] = layer[k] + energia_k;
-					/*}else{
-
-						printf("%d,%d,%d\n",k,inicio,fin);
-					}*/
 			}
 		}
 
