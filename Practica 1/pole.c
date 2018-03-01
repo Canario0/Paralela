@@ -247,19 +247,46 @@ int main(int argc, char *argv[]) {
 			layer[k] = ( layer_copy[k-1] + layer_copy[k] + layer_copy[k+1] ) / 3;
 
 		/* 4.3. Localizar maximo */
+		
 		#pragma omp parallel for firstprivate(layer)
 		for( k=1; k<layer_size-1; k++ ) {
 			/* Comprobar solo maximos locales */
 			if ( layer[k] > layer[k-1] && layer[k] > layer[k+1] ) {
 				#pragma omp critical
 				{
-				if ( layer[k] > maximos[i] ) {
-					maximos[i] = layer[k];
-					posiciones[i] = k;
-				}
+					if ( layer[k] > maximos[i] ) {
+						maximos[i] = layer[k];
+						posiciones[i] = k;
+					}
 				}
 			}
 		}
+		
+
+		/* Posible mejora, pero con sus entradas no se puede bajar el tiempo con las pruebas que llevo*/
+
+		#if 0
+		float maximo=0;
+		#pragma omp parallel for firstprivate(layer), reduction(max:maximo)
+		for( k=1; k<layer_size-1; k++ ) {
+			/* Comprobar solo maximos locales */
+			if ( layer[k] > layer[k-1] && layer[k] > layer[k+1] ) {
+				if ( layer[k] > maximo ) {
+					maximo = layer[k];
+				}
+			}
+		}
+		maximos[i]=maximo;
+		#pragma omp parallel for firstprivate(layer, maximos)
+		for( k=1; k<layer_size-1; k++ ) {
+			/* Comprobar solo maximos locales */
+				if ( maximos[i]==layer[k] ) {
+					posiciones[i] = k;
+				}
+		}
+		#endif
+		
+
 	}
 
 	/* FINAL: No optimizar/paralelizar por debajo de este punto */
