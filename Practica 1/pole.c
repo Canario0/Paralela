@@ -203,7 +203,7 @@ int main(int argc, char *argv[]) {
 			}
 
 			/*k1 y k2 son los valores inicial y final donde afecta la energía siempre*/
-			#pragma omp parallel for private(k) firstprivate(layer)
+			#pragma omp parallel for private(k)
 			for( k=k1 ; k< k2; k++ ) {
 				/* Actualizar posicion */
 					/* 1. Calcular valor absoluto de la distancia entre el
@@ -220,12 +220,12 @@ int main(int argc, char *argv[]) {
 
 		/* 4.2. Relajacion entre tormentas de particulas */
 		/* 4.2.1. Copiar valores a capa auxiliar */
-		#pragma omp parallel for firstprivate(layer_copy, layer)
+		#pragma omp parallel for firstprivate(layer)
 		for( k=0; k<layer_size; k++ ) 
 			layer_copy[k] = layer[k];
 
 		/* 4.2.2. Actualizar capa, menos los extremos, usando valores del array auxiliar */
-		#pragma omp parallel for firstprivate( layer_copy, layer)
+		#pragma omp parallel for firstprivate( layer_copy)
 		for( k=1; k<layer_size-1; k++ )
 			layer[k] = ( layer_copy[k-1] + layer_copy[k] + layer_copy[k+1] ) / 3;
 
