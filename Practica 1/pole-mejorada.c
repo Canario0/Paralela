@@ -144,6 +144,11 @@ int main(int argc, char *argv[]) {
 		layer_copy[k] = 0.0f;
 	
 	/* 4. Fase de bombardeos */
+	float *raiz = (float *)malloc( sizeof(float) * layer_size);
+	#pragma omp parallel for
+	for(int i=0; i < layer_size; i++)
+			raiz[i]=sqrtf(i+1);
+
 	for( i=0; i<num_storms; i++) {
 
 		/* 4.1. Suma energia de impactos */
@@ -156,62 +161,19 @@ int main(int argc, char *argv[]) {
 			
 			/* Para cada posicion de la capa */
 			/*Posición incial y finalde acción de la energia del impacto*/
-			int inicio = posicion + 1 - 1000000*(energia*energia);
-			int fin = posicion + 1 + 1000000*(energia*energia);
+			int inicio = (posicion + 1 - 1000000*(energia*energia));
+			int fin = (posicion + 1000000*(energia*energia));
 			inicio = (inicio<0)?0:(inicio);
 			fin = (fin>layer_size)?layer_size:(fin);
-
-			int k1 = inicio;
-			/* Debido a fallos, consecuencia de redondeos, el inicio no es exacto por lo que procesamos 
-			los n primeros datos hasta que no falle*/
-			while (k1<fin){
-				/* Actualizar posicion */
-					/* 1. Calcular valor absoluto de la distancia entre el
-						punto de impacto y el punto k de la capa */
-					int distancia = posicion - k1;
-					if ( distancia < 0 ) distancia = - distancia;
-
-					/* 2. Calcular energia atenuada */
-					float energia_k = energia / sqrtf( (float)(distancia + 1) );
-
-					/* 3. No sumar si el valor absoluto es menor que umbral */
-					if ( energia_k >= UMBRAL){
-						layer[k1] = layer[k1] + energia_k;
-						k1++;
-						break;
-					}
-					k1++;
-			}
-			int k2 = fin;
-			/* Debido a fallos, consecuencia de redondeos, el inicio no es exacto por lo que procesamos 
-			los n finales datos hasta que no falle*/
-			while (k2>inicio){
-				/* Actualizar posicion */
-					/* 1. Calcular valor absoluto de la distancia entre el
-						punto de impacto y el punto k de la capa */
-					int distancia = posicion - k2;
-					if ( distancia < 0 ) distancia = - distancia;
-					/* 3. Calcular energia atenuada */
-					float energia_k = energia / sqrtf( (float)(distancia + 1) );
-
-					/* 4. No sumar si el valor absoluto es menor que umbral */
-					if ( energia_k >= UMBRAL){
-						layer[k2] = layer[k2] + energia_k;
-						break;
-					}
-					k2--;
-			}
-
+	
 			/*k1 y k2 son los valores inicial y final donde afecta la energía siempre*/
 			#pragma omp parallel for private(k)
-			for( k=k1 ; k< k2; k++ ) {
+			for( k=inicio ; k< fin; k++ ) {
 				/* Actualizar posicion */
 					/* 1. Calcular valor absoluto de la distancia entre el
 						punto de impacto y el punto k de la capa */
-					int distancia = posicion - k;
-					if ( distancia < 0 ) distancia = - distancia;
 					/* 2. Calcular energia atenuada */
-					float energia_k = energia / sqrtf( (float)(distancia + 1) );
+					float energia_k = energia / raiz[abs(posicion - k)];//sqrtf( (float) ) );
 
 					/* 5. No es necesario comprobar si pasa el umbral, porque siempre es mayor */
 						layer[k] = layer[k] + energia_k;
@@ -230,7 +192,7 @@ int main(int argc, char *argv[]) {
 			layer[k] = ( layer_copy[k-1] + layer_copy[k] + layer_copy[k+1] ) / 3;
 
 		/* 4.3. Localizar maximo */
-		
+
 		#pragma omp parallel for firstprivate(layer)
 		for( k=1; k<layer_size-1; k++ ) {
 			/* Comprobar solo maximos locales */
