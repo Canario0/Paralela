@@ -24,11 +24,6 @@ typedef struct
 	int *posval;
 } Storm;
 
-/* ESTA FUNCION PUEDE SER MODIFICADA */
-/* Funcion para actualizar una posicion de la capa */
-void actualiza(float *layer, int k, int pos, float energia)
-{
-}
 
 /* FUNCIONES AUXILIARES: No se utilizan dentro de la medida de tiempo, dejar como estan */
 /* Funcion de DEBUG: Imprimir el estado de la capa */
@@ -122,6 +117,7 @@ int main(int argc, char *argv[])
 	MPI_Init(&argc, &argv);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
+	MPI_Status status;
 
 	/* 1.1. Leer argumentos */
 	if (argc < 3)
@@ -163,8 +159,6 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 	/* 3. Reservar memoria para las capas e inicializar a cero */
-	MPI_Scatter(layer, layersize, MPI_FLOAT, miniLayer, layersize, MPI_FLOAT, 0, MPI_COMM_WORLD);
-
 	float *layer_copy = (float *)malloc(sizeof(float) * layersize);
 
 	if (miniLayer == NULL || layer_copy == NULL)
@@ -181,8 +175,8 @@ int main(int argc, char *argv[])
 	raiz = (float *)malloc(sizeof(float) * layer_size);
 
 	for (int i = 0; i < layer_size; i++)
-		raiz[i] = sqrtf(i+1);
-		// raiz[i] = sqrtf(i + 1 + rank * (layersize));
+		raiz[i] = sqrtf(i + 1);
+	// raiz[i] = sqrtf(i + 1 + rank * (layersize));
 
 	/* 4. Fase de bombardeos */
 	for (i = 0; i < num_storms; i++)
@@ -231,10 +225,39 @@ int main(int argc, char *argv[])
 			layer_copy[k] = miniLayer[k];
 
 		/* 4.2.2. Actualizar capa, menos los extremos, usando valores del array auxiliar */
+		if (rank != 0)
+			MPI_Send(&layer_copy[0], 1, MPI_FLOAT, rank - 1, 0, MPI_COMM_WORLD);
+
+		float ini;
+		float fin;
+
+		if (rank != size - 1)
+		{
+			MPI_Recv(&fin, 1, MPI_FLOAT, rank + 1, 0, MPI_COMM_WORLD, &status);
+			miniLayer[layersize - 1] = (layer_copy[layersize - 1 - 1] + layer_copy[layersize - 1] + fin) / 3;
+			MPI_Send(&layer_copy[layersize - 1], 1, MPI_FLOAT, rank + 1, 0, MPI_COMM_WORLD);
+		}
+		if (rank != 0)
+		{
+			MPI_Recv(&ini, 1, MPI_FLOAT, rank - 1, 0, MPI_COMM_WORLD, &status);
+			miniLayer[0] = (ini + layer_copy[0] + layer_copy[0 + 1]) / 3;
+		}
+
 		for (k = 1; k < layersize - 1; k++)
 			miniLayer[k] = (layer_copy[k - 1] + layer_copy[k] + layer_copy[k + 1]) / 3;
 
 		MPI_Gather(miniLayer, layersize, MPI_FLOAT, layer, layersize, MPI_FLOAT, 0, MPI_COMM_WORLD);
+		// for (int i = 0; i < size; i++)
+		// {
+		// 	if (i == rank)
+		// 	{
+		// 		printf("[%i] ", rank);
+		// 		for (int j = 0; j < layersize; j++)
+		// 			printf("%f ", miniLayer[j]);
+		// 		printf("\n");
+		// 	}
+		// 	MPI_Barrier(MPI_COMM_WORLD);
+		// }
 		if (rank == ROOT_RANK)
 		{
 			/* 4.3. Localizar maximo */
