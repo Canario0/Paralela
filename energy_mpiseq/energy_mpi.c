@@ -156,39 +156,37 @@ int main(int argc, char *argv[])
 	float *raiz;
 	float *layer = (float *)malloc(sizeof(float) * layer_size);
 	int layersize = layer_size / size;
-	float *miniLayer= (float *)malloc(sizeof(float) * layersize);
+	float *miniLayer = (float *)malloc(sizeof(float) * layersize);
 	if (layer == NULL)
-		{
+	{
 		fprintf(stderr, "Error: Allocating the layer memory\n");
 		exit(EXIT_FAILURE);
-		}
-		/* 3. Reservar memoria para las capas e inicializar a cero */
-		MPI_Scatter(layer, layersize, MPI_FLOAT, miniLayer, layersize, MPI_FLOAT, 0, MPI_COMM_WORLD);
+	}
+	/* 3. Reservar memoria para las capas e inicializar a cero */
+	MPI_Scatter(layer, layersize, MPI_FLOAT, miniLayer, layersize, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-		float *layer_copy = (float *)malloc(sizeof(float) * layersize);
+	float *layer_copy = (float *)malloc(sizeof(float) * layersize);
 
-		if (miniLayer == NULL || layer_copy == NULL)
-		{
+	if (miniLayer == NULL || layer_copy == NULL)
+	{
 		fprintf(stderr, "Error: Allocating the layer memory\n");
 		exit(EXIT_FAILURE);
-		}
+	}
 
-		for (k = 0; k < layersize; k++)
-			miniLayer[k] = 0.0f;
-		for (k = 0; k < layersize; k++)
-			layer_copy[k] = 0.0f;
+	for (k = 0; k < layersize; k++)
+		miniLayer[k] = 0.0f;
+	for (k = 0; k < layersize; k++)
+		layer_copy[k] = 0.0f;
 
-		raiz = (float *)malloc(sizeof(float) * layersize);
-		
-		
-		for (int i = 0; i < layersize; i++)
-			raiz[i] = sqrtf(i + 1 +  rank*(layersize));
-		
+	raiz = (float *)malloc(sizeof(float) * layer_size);
 
-	
-		/* 4. Fase de bombardeos */
-		for (i = 0; i < num_storms; i++)
-		{
+	for (int i = 0; i < layer_size; i++)
+		raiz[i] = sqrtf(i+1);
+		// raiz[i] = sqrtf(i + 1 + rank * (layersize));
+
+	/* 4. Fase de bombardeos */
+	for (i = 0; i < num_storms; i++)
+	{
 
 		/* 4.1. Suma energia de impactos */
 		/* Para cada particula */
@@ -217,6 +215,8 @@ int main(int argc, char *argv[])
 				//float atenuacion = sqrtf((float)distancia);
 
 				/* 4. Calcular energia atenuada */
+				//printf("Posicion: %d", posicion - (k + rank * (layersize)));
+				//fflush(stdout);
 				float energia_k = energia / raiz[abs(posicion - (k + rank * (layersize)))];
 
 				/* 5. No sumar si el valor absoluto es menor que umbral */
