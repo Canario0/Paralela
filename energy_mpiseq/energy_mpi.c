@@ -283,14 +283,11 @@ int main(int argc, char *argv[])
 		for (k = inicio; k < final; k++)
 		{
 			/* Comprobar solo maximos locales */
-			if (miniLayer[k] > miniLayer[k - 1] && miniLayer[k] > miniLayer[k + 1])
-			{
 				if (miniLayer[k] > local.valor)
 				{
 					local.valor = miniLayer[k];
-					local.posicion = k;
+					local.posicion = k + desplazamiento;
 				}
-			}
 		}
 
 		MPI_Reduce(&local, &global, 1, MPI_FLOAT_INT, MPI_MAXLOC, ROOT_RANK, MPI_COMM_WORLD);
@@ -304,6 +301,12 @@ int main(int argc, char *argv[])
 
 	/* FINAL: No optimizar/paralelizar por debajo de este punto */
 	/* 5. Final de medida de tiempo */
+	MPI_Barrier(MPI_COMM_WORLD);
+	if(rank==ROOT_RANK){
+		printf("%d\n", layer_size);fflush(stdout);
+	}
+	
+	printf("[%d] %d ", rank, desplazamiento);fflush(stdout);
 	MPI_Barrier(MPI_COMM_WORLD);
 	ttotal = cp_Wtime() - ttotal;
 
