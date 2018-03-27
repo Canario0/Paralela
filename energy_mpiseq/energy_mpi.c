@@ -150,7 +150,6 @@ int main(int argc, char *argv[])
 	/* COMIENZO: No optimizar/paralelizar el main por encima de este punto */
 	//float *layer = (float *)malloc(sizeof(float) * layer_size);
 
-
 	/*---------------------------------------------------------------------*/
 
 	int local_layer_size = layer_size / size;
@@ -257,14 +256,31 @@ int main(int argc, char *argv[])
 			miniLayer[k] = (layer_copy[k - 1] + layer_copy[k] + layer_copy[k + 1]) / 3;
 
 		//MPI_Gather(miniLayer, local_layer_size, MPI_FLOAT, layer, local_layer_size, MPI_FLOAT, ROOT_RANK, MPI_COMM_WORLD);
-		struct {
+		struct
+		{
 			float valor;
 			int posicion;
 		} local, global;
 
-		local.valor=0;
+		local.valor = 0;
 
-		for (k = 1; k < local_layer_size - 1; k++)
+		int inicio;
+		int final;
+
+		if (rank == 0)
+		{
+			inicio = 1;
+			final = local_layer_size;
+		}
+		else if (rank == size - 1)
+		{
+			inicio = 0;
+			final = local_layer_size - 1;
+		}else {
+			inicio = 0;
+			final = local_layer_size;
+		}
+		for (k = inicio; k < final; k++)
 		{
 			/* Comprobar solo maximos locales */
 			if (miniLayer[k] > miniLayer[k - 1] && miniLayer[k] > miniLayer[k + 1])
@@ -277,9 +293,10 @@ int main(int argc, char *argv[])
 			}
 		}
 
-		MPI_Reduce(&local, &global, 1, MPI_FLOAT_INT, MPI_MAXLOC, 0, MPI_COMM_WORLD);
+		MPI_Reduce(&local, &global, 1, MPI_FLOAT_INT, MPI_MAXLOC, ROOT_RANK, MPI_COMM_WORLD);
 
-		if (rank == 0){
+		if (rank == 0)
+		{
 			maximos[i] = global.valor;
 			posiciones[i] = global.posicion;
 		}
