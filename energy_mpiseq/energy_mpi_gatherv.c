@@ -267,12 +267,15 @@ int main(int argc, char *argv[])
 				datos[z] = layer_size / size;
 				if (z < layer_size % size)
 					datos[z] += 1;
-				aux += datos[z];
+				aux += (z==0) ? 0 : (datos[z-1]*sizeof(float));
 				espacios[z] = aux;
-				printf("no peto %d %d\n",datos[z] , espacios[z]); fflush(stdout);
+				printf("no peto %d %d\n", datos[z], espacios[z]);
+				fflush(stdout);
 			}
 		}
-		printf("no peto %d %d\n",rank , local_layer_size); fflush(stdout);
+		printf("no peto %d %d\n", rank, local_layer_size);
+		fflush(stdout);
+
 		MPI_Gatherv(miniLayer, local_layer_size, MPI_FLOAT, layer, datos, espacios, MPI_FLOAT, 0, MPI_COMM_WORLD);
 		// for (int i = 0; i < size; i++)
 		// {
