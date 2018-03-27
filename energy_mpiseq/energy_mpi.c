@@ -23,6 +23,23 @@ typedef struct
 	int size;
 	int *posval;
 } Storm;
+/* Estructura para almacenar el maximo y su posición */
+typedef struct
+{
+	float valor;
+	int posicion;
+} Maximo;
+
+void struct_maximo_reduction(void *invec, void *inoutvec, int *len, MPI_Datatype *datatype)
+{
+	Maximo *in = (Maximo *)invec;
+	Maximo *out = (Maximo *)inoutvec;
+	for (int i = 0; i < *len; i++)
+	{
+		if (in[i].valor > out[i].valor)
+			out[i] = in[i];
+	}
+}
 
 /* FUNCIONES AUXILIARES: No se utilizan dentro de la medida de tiempo, dejar como estan */
 /* Funcion de DEBUG: Imprimir el estado de la capa */
@@ -148,10 +165,40 @@ int main(int argc, char *argv[])
 	double ttotal = cp_Wtime();
 
 	/* COMIENZO: No optimizar/paralelizar el main por encima de este punto */
-	float *layer = (float *)malloc(sizeof(float) * layer_size);
+	//float *layer = (float *)malloc(sizeof(float) * layer_size);
+
+	/*---------------------------------------------------------------------*/
+	// Definición de el nuevo tipo
+	Maximo *maximos_locales = (Maximo *)malloc(sizeof(Maximo) * num_storms);
+
+	MPI_Datatype MPI_Maximo;
+	Maximo data;
+	MPI_Aint address_data, address_valor, address_posicion;
+	MPI_Get_address(&data, &address_data);
+	MPI_Get_address(&data.valor, &address_valor);
+	MPI_Get_address(&data.posicion, &address_posicion);
+
+	// Calculo de las distancias
+	MPI_Aint displ_valor = address_valor - address_data;
+	MPI_Aint displ_posicion = address_posicion - address_data;
+
+	int bloques[2] = {1, 1};
+	MPI_Aint distancias[2] = {displ_valor, displ_posicion};
+	MPI_Datatype tipos[2] = {MPI_FLOAT, MPI_INT};
+
+	MPI_Type_create_struct(2, bloques, distancias, tipos, &MPI_Maximo);
+
+	MPI_Type_commit(&MPI_Maximo);
+
+	// Creamos una nueva operación
+	MPI_Op MPI_MAX_N;
+	MPI_Op_create(&struct_maximo_reduction, 1, &MPI_MAX_N);
+
+	/*---------------------------------------------------------------------*/
 
 	int local_layer_size = layer_size / size;
-	if(rank< layer_size%size) local_layer_size+=1;
+	if (rank < layer_size % size)
+		local_layer_size += 1;
 
 	int desplazamiento = (rank > layer_size % size) ? rank * (local_layer_size) + layer_size % size : rank * (local_layer_size) + rank;
 	// if(rank > layer_size%size)
@@ -160,11 +207,11 @@ int main(int argc, char *argv[])
 	// 	desplazamiento+=rank;
 
 	float *miniLayer = (float *)malloc(sizeof(float) * local_layer_size);
-	if (layer == NULL)
-	{
-		fprintf(stderr, "Error: Allocating the layer memory\n");
-		exit(EXIT_FAILURE);
-	}
+	// if (layer == NULL)
+	// {
+	// 	fprintf(stderr, "Error: Allocating the layer memory\n");
+	// 	exit(EXIT_FAILURE);
+	// }
 	/* 3. Reservar memoria para las capas e inicializar a cero */
 	float *layer_copy = (float *)malloc(sizeof(float) * local_layer_size);
 
@@ -252,34 +299,52 @@ int main(int argc, char *argv[])
 		for (k = 1; k < local_layer_size - 1; k++)
 			miniLayer[k] = (layer_copy[k - 1] + layer_copy[k] + layer_copy[k + 1]) / 3;
 
-		MPI_Gather(miniLayer, local_layer_size, MPI_FLOAT, layer, local_layer_size, MPI_FLOAT, 0, MPI_COMM_WORLD);
-		// for (int i = 0; i < size; i++)
-		// {
-		// 	if (i == rank)
-		// 	{
-		// 		printf("[%i] ", rank);
-		// 		for (int j = 0; j < local_layer_size; j++)
-		// 			printf("%f ", miniLayer[j]);
-		// 		printf("\n");
-		// 	}
-		// 	MPI_Barrier(MPI_COMM_WORLD);
-		// }
-		if (rank == ROOT_RANK)
+		//MPI_Gather(miniLayer, local_layer_size, MPI_FLOAT, layer, local_layer_size, MPI_FLOAT, ROOT_RANK, MPI_COMM_WORLD);
+
+		for (k = 1; k < local_layer_size - 1; k++)
 		{
-			/* 4.3. Localizar maximo */
-			for (k = 1; k < layer_size - 1; k++)
+			/* Comprobar solo maximos locales */
+			if (miniLayer[k] > miniLayer[k - 1] && miniLayer[k] > miniLayer[k + 1])
 			{
-				/* Comprobar solo maximos locales */
-				if (layer[k] > layer[k - 1] && layer[k] > layer[k + 1])
+				if (miniLayer[k] > maximos_locales[i].valor)
 				{
-					if (layer[k] > maximos[i])
-					{
-						maximos[i] = layer[k];
-						posiciones[i] = k;
-					}
+					maximos_locales[i].valor = miniLayer[k];
+					maximos_locales[i].posicion = k;
 				}
-			} //end for each particle in storm
-		}	 //end foreach storm
+			}
+		}
+	// 	printf("rank: %d, posición: %d, max local: %f\n", rank, maximos_locales[i].posicion, maximos_locales[i].valor);
+	// 	fflush(stdout);
+	// 	if (rank == ROOT_RANK)
+	// 	{
+	// 		/* 4.3. Localizar maximo */
+	// 		for (k = 1; k < layer_size - 1; k++)
+	// 		{
+	// 			/* Comprobar solo maximos locales */
+	// 			if (layer[k] > layer[k - 1] && layer[k] > layer[k + 1])
+	// 			{
+	// 				if (layer[k] > maximos[i])
+	// 				{
+	// 					maximos[i] = layer[k];
+	// 					posiciones[i] = k + desplazamiento;
+	// 				}
+	// 			}
+	// 		} //end for each particle in storm
+	// 	}	 //end foreach storm
+	}
+	Maximo *maximos_globales;
+	if (rank == ROOT_RANK)
+	{
+		maximos_globales = (Maximo *)malloc(sizeof(Maximo) * num_storms);
+	}
+	MPI_Reduce(maximos_locales, maximos_globales, num_storms, MPI_Maximo, MPI_MAX_N, ROOT_RANK, MPI_COMM_WORLD);
+	if (rank == ROOT_RANK)
+	{
+		for (int i = 0; i < num_storms; i++){
+			maximos[i]=maximos_globales[i].valor;
+			posiciones[i] = maximos_globales[i].posicion;
+		}
+		// printf("Valor: %lf, posicion: %d", maximos_globales[i].valor, maximos_globales[i].posicion);
 	}
 	/* FINAL: No optimizar/paralelizar por debajo de este punto */
 	/* 5. Final de medida de tiempo */
@@ -288,7 +353,7 @@ int main(int argc, char *argv[])
 
 /* 6. DEBUG: Dibujar resultado (Solo para capas con hasta 35 puntos) */
 #ifdef DEBUG
-	debug_print(layer_size, layer, posiciones, maximos, num_storms);
+	debug_print(layer_size, layer, posiciones, maximos, num_storms, MPI_Maximo, );
 #endif
 
 	if (rank == ROOT_RANK)
