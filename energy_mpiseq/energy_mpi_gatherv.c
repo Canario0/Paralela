@@ -148,8 +148,8 @@ int main(int argc, char *argv[])
 
 	/* COMIENZO: No optimizar/paralelizar el main por encima de este punto */
 
-	int *datos;
-	int *espacios;
+	int *datos = NULL;
+	int *espacios = NULL;
 	if (rank == ROOT_RANK)
 	{
 		datos = (int *)malloc(sizeof(int) * size);
@@ -261,20 +261,19 @@ int main(int argc, char *argv[])
 
 		if (rank == ROOT_RANK)
 		{
-			int aux = 0;
 			for (int z = 0; z < size; z++)
 			{
 				datos[z] = layer_size / size;
 				if (z < layer_size % size)
 					datos[z] += 1;
-				aux += (z==0) ? 0 : (datos[z-1]*sizeof(float));
-				espacios[z] = aux;
-				printf("no peto %d %d\n", datos[z], espacios[z]);
-				fflush(stdout);
+				espacios[z] = ((z > layer_size % size) ? z* (datos[z]) + layer_size % size : z * (datos[z]) + z);
+				// printf("no peto %d %d\n", datos[z], espacios[z]);
+				// fflush(stdout);
 			}
 		}
-		printf("no peto %d %d\n", rank, local_layer_size);
-		fflush(stdout);
+
+		// printf("no peto %d %d\n", rank, local_layer_size);
+		// fflush(stdout);
 
 		MPI_Gatherv(miniLayer, local_layer_size, MPI_FLOAT, layer, datos, espacios, MPI_FLOAT, 0, MPI_COMM_WORLD);
 		// for (int i = 0; i < size; i++)
@@ -305,12 +304,14 @@ int main(int argc, char *argv[])
 					if (layer[k] > maximos[i])
 					{
 						maximos[i] = layer[k];
-						posiciones[i] = k + desplazamiento;
+						posiciones[i] = k;
 					}
 				}
 			} //end for each particle in storm
 		}	 //end foreach storm
 	}
+	// free(datos);
+	// free(espacios);
 	/* FINAL: No optimizar/paralelizar por debajo de este punto */
 	/* 5. Final de medida de tiempo */
 	MPI_Barrier(MPI_COMM_WORLD);
