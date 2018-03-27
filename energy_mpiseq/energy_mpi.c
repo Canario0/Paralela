@@ -249,10 +249,12 @@ int main(int argc, char *argv[])
 		{
 			MPI_Recv(&ini, 1, MPI_FLOAT, rank - 1, 0, MPI_COMM_WORLD, &status);
 		}
-		if (local_layer_size ==1 ){
+		if (local_layer_size ==1 && rank != 0 && rank != size - 1){
 			miniLayer[0] = (ini + layer_copy[0] + fin) / 3;
 		}else{
+			if(rank != size-1)
 			miniLayer[local_layer_size - 1] = (layer_copy[local_layer_size - 1 - 1] + layer_copy[local_layer_size - 1] + fin) / 3;
+			if(rank != 0)
 			miniLayer[0] = (ini + layer_copy[0] + layer_copy[1]) / 3;
 		}
 
