@@ -147,6 +147,15 @@ int main(int argc, char *argv[])
 	double ttotal = cp_Wtime();
 
 	/* COMIENZO: No optimizar/paralelizar el main por encima de este punto */
+
+	int *datos;
+	int *espacios;
+	if (rank == ROOT_RANK)
+	{
+		datos = (int *)malloc(sizeof(int) * size);
+		espacios = (int *)malloc(sizeof(int) * size);
+	}
+
 	float *layer;
 	if (rank == ROOT_RANK)
 		layer = (float *)malloc(sizeof(float) * layer_size);
@@ -250,23 +259,20 @@ int main(int argc, char *argv[])
 		for (k = 1; k < local_layer_size - 1; k++)
 			miniLayer[k] = (layer_copy[k - 1] + layer_copy[k] + layer_copy[k + 1]) / 3;
 
-		int *datos;
-		int *espacios;
 		if (rank == ROOT_RANK)
 		{
-			datos = (int *)malloc(sizeof(int) * size);
-			espacios = (int *)malloc(sizeof(int) * size);
-			int aux=0;
+			int aux = 0;
 			for (int z = 0; z < size; z++)
 			{
 				datos[z] = layer_size / size;
 				if (z < layer_size % size)
 					datos[z] += 1;
-				aux+=datos[z];
-				espacios[z]=aux;
+				aux += datos[z];
+				espacios[z] = aux;
+				printf("no peto %d %d\n",datos[z] , espacios[z]); fflush(stdout);
 			}
 		}
-
+		printf("no peto %d %d\n",rank , local_layer_size); fflush(stdout);
 		MPI_Gatherv(miniLayer, local_layer_size, MPI_FLOAT, layer, datos, espacios, MPI_FLOAT, 0, MPI_COMM_WORLD);
 		// for (int i = 0; i < size; i++)
 		// {
@@ -279,11 +285,9 @@ int main(int argc, char *argv[])
 		// 	}
 		// 	MPI_Barrier(MPI_COMM_WORLD);
 		// }
-		
+
 		if (rank == ROOT_RANK)
 		{
-			free(datos);
-			free(espacios);
 			if (layer == NULL)
 			{
 				fprintf(stderr, "Error: Allocating the layer memory\n");
