@@ -293,7 +293,6 @@ int main(int argc, char *argv[])
 		}
 		printf("\n"); */
 
-
 		local.valor = 0;
 		local.posicion = 0;
 		// for (int x = 0; x < local_layer_size; x++)

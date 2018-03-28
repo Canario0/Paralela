@@ -1,0 +1,44 @@
+Valor 6.577125, Posicion: 0
+Valor 6.577681, Posicion: 1
+Valor 6.954019, Posicion: 2
+Valor 7.671945, Posicion: 3
+Valor 9.110477, Posicion: 4
+Valor 9.512781, Posicion: 5
+Valor 9.247315, Posicion: 6
+Valor 8.494692, Posicion: 7
+Valor 8.680078, Posicion: 8
+Valor 8.621273, Posicion: 9
+Valor 8.398662, Posicion: 10
+Valor 7.734934, Posicion: 11
+Valor 6.699415, Posicion: 12
+Valor 6.092744, Posicion: 13
+Valor 5.686097, Posicion: 14
+Valor 5.356803, Posicion: 15
+Valor 5.067659, Posicion: 16
+Valor 4.775361, Posicion: 17
+Valor 4.544762, Posicion: 18
+Valor 4.352131, Posicion: 19
+
+Valor 6.577125, Posicion: 0
+Valor 6.702941, Posicion: 1
+Valor 7.067881, Posicion: 2
+Valor 7.912147, Posicion: 3
+Valor 8.765067, Posicion: 4
+Valor 9.290192, Posicion: 5
+Valor 9.084929, Posicion: 6
+Valor 8.807362, Posicion: 7
+Valor 8.598681, Posicion: 8
+Valor 8.566670, Posicion: 9
+Valor 8.251623, Posicion: 10
+Valor 7.611004, Posicion: 11
+Valor 6.842365, Posicion: 12
+Valor 6.159419, Posicion: 13
+Valor 5.711882, Posicion: 14
+Valor 5.370186, Posicion: 15
+Valor 5.066608, Posicion: 16
+Valor 4.795928, Posicion: 17
+Valor 4.557418, Posicion: 18
+Valor 4.352131, Posicion: 19
+
+Time: 0.059256
+Result: 5 9.290192
