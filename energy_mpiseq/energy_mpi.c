@@ -184,6 +184,19 @@ int main(int argc, char *argv[])
 
 	float *raiz = (float *)malloc(sizeof(float) * layer_size);
 
+	int inicio;
+	int final;
+	float ini;
+	float fin;
+	float energia_k;
+	int posicion;
+	float energia;
+	struct
+	{
+		float valor;
+		int posicion;
+	} local, global;
+
 	for (int i = 0; i < layer_size; i++)
 		raiz[i] = sqrtf(i + 1);
 
@@ -196,9 +209,9 @@ int main(int argc, char *argv[])
 		for (j = 0; j < storms[i].size; j++)
 		{
 			/* Energia de impacto (en milesimas) */
-			float energia = (float)storms[i].posval[j * 2 + 1] / 1000;
+			energia = (float)storms[i].posval[j * 2 + 1] / 1000;
 			/* Posicion de impacto */
-			int posicion = storms[i].posval[j * 2];
+			posicion = storms[i].posval[j * 2];
 
 			/* Para cada posicion de la capa */
 			for (k = 0; k < local_layer_size; k++)
@@ -220,9 +233,9 @@ int main(int argc, char *argv[])
 				/* 4. Calcular energia atenuada */
 				//printf("Posicion: %d", posicion - (k + rank * (local_layer_size)));
 				//fflush(stdout);
-				float energia_k = energia / raiz[abs(posicion - (k + desplazamiento))];
+				energia_k = energia / raiz[abs(posicion - (k + desplazamiento))];
 
-				/* 5. No sumar si el valor absoluto es menor que umbral */
+				// /* 5. No sumar si el valor absoluto es menor que umbral */
 				if (energia_k >= UMBRAL)
 					miniLayer[k] = miniLayer[k] + energia_k;
 			}
@@ -237,9 +250,6 @@ int main(int argc, char *argv[])
 		if (rank != 0)
 			MPI_Send(&layer_copy[0], 1, MPI_FLOAT, rank - 1, 0, MPI_COMM_WORLD);
 
-		float ini;
-		float fin;
-
 		if (rank != size - 1)
 		{
 			MPI_Recv(&fin, 1, MPI_FLOAT, rank + 1, 0, MPI_COMM_WORLD, &status);
@@ -249,29 +259,30 @@ int main(int argc, char *argv[])
 		{
 			MPI_Recv(&ini, 1, MPI_FLOAT, rank - 1, 0, MPI_COMM_WORLD, &status);
 		}
-		if (local_layer_size ==1 && rank != 0 && rank != size - 1){
+		if (local_layer_size == 1 && rank != 0 && rank != size - 1)
+		{
 			miniLayer[0] = (ini + layer_copy[0] + fin) / 3;
-		}else{
-			if(rank != size-1)
-			miniLayer[local_layer_size - 1] = (layer_copy[local_layer_size - 1 - 1] + layer_copy[local_layer_size - 1] + fin) / 3;
-			if(rank != 0)
-			miniLayer[0] = (ini + layer_copy[0] + layer_copy[1]) / 3;
+		}
+		else
+		{
+			if (rank != size - 1)
+				miniLayer[local_layer_size - 1] = (layer_copy[local_layer_size - 1 - 1] + layer_copy[local_layer_size - 1] + fin) / 3;
+			if (rank != 0)
+				miniLayer[0] = (ini + layer_copy[0] + layer_copy[1]) / 3;
 		}
 
 		for (k = 1; k < local_layer_size - 1; k++)
 			miniLayer[k] = (layer_copy[k - 1] + layer_copy[k] + layer_copy[k + 1]) / 3;
 
 		//MPI_Gather(miniLayer, local_layer_size, MPI_FLOAT, layer, local_layer_size, MPI_FLOAT, ROOT_RANK, MPI_COMM_WORLD);
-		struct
-		{
-			float valor;
-			int posicion;
-		} local, global;
 
 		local.valor = 0;
-
-		int inicio;
-		int final;
+		local.posicion = 0;
+		// for (int x = 0; x < local_layer_size; x++)
+		// {
+		// 	printf("[%d] %d, %lf\n", rank, x + desplazamiento, miniLayer[x]);
+		// 	fflush(stdout);
+		// }
 
 		if (rank == 0)
 		{
@@ -292,11 +303,11 @@ int main(int argc, char *argv[])
 		{
 			//printf(" [%d] %lf %d\n",rank, miniLayer[k], k+desplazamiento);
 			/* Comprobar solo maximos locales */
-				if (miniLayer[k] > local.valor)
-				{
-					local.valor = miniLayer[k];
-					local.posicion = k + desplazamiento;
-				}
+			if (miniLayer[k] > local.valor)
+			{
+				local.valor = miniLayer[k];
+				local.posicion = k + desplazamiento;
+			}
 		}
 
 		MPI_Reduce(&local, &global, 1, MPI_FLOAT_INT, MPI_MAXLOC, ROOT_RANK, MPI_COMM_WORLD);
@@ -319,6 +330,9 @@ int main(int argc, char *argv[])
 
 	// printf("[%d] %d ", rank, desplazamiento);
 	// fflush(stdout);
+	// free(raiz);
+	free(miniLayer);
+	free(layer_copy);
 	MPI_Barrier(MPI_COMM_WORLD);
 	ttotal = cp_Wtime() - ttotal;
 
