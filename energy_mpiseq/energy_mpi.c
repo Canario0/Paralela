@@ -170,6 +170,7 @@ int main(int argc, char *argv[])
 	// }
 	/* 3. Reservar memoria para las capas e inicializar a cero */
 	float *layer_copy = (float *)malloc(sizeof(float) * local_layer_size);
+	float *layer_temp;
 
 	if (miniLayer == NULL || layer_copy == NULL)
 	{
@@ -195,11 +196,10 @@ int main(int argc, char *argv[])
 	{
 		float valor;
 		int posicion;
-	} local, global;
+	} local[num_storms], global[num_storms];
 
 	for (int i = 0; i < layer_size; i++)
 		raiz[i] = sqrtf(i + 1);
-
 	/* 4. Fase de bombardeos */
 	for (i = 0; i < num_storms; i++)
 	{
@@ -233,6 +233,7 @@ int main(int argc, char *argv[])
 				/* 4. Calcular energia atenuada */
 				//printf("Posicion: %d", posicion - (k + rank * (local_layer_size)));
 				//fflush(stdout);
+
 				energia_k = energia / raiz[abs(posicion - (k + desplazamiento))];
 
 				// /* 5. No sumar si el valor absoluto es menor que umbral */
@@ -250,8 +251,12 @@ int main(int argc, char *argv[])
 
 		/* 4.2. Relajacion entre tormentas de particulas */
 		/* 4.2.1. Copiar valores a capa auxiliar */
-		for (k = 0; k < local_layer_size; k++)
-			layer_copy[k] = miniLayer[k];
+		// for (k = 0; k < local_layer_size; k++)
+		// 	layer_copy[k] = miniLayer[k];
+
+		layer_temp = layer_copy;
+		layer_copy = miniLayer;
+		miniLayer = layer_temp;
 
 		ini = 0;
 		fin = 0;
@@ -268,6 +273,11 @@ int main(int argc, char *argv[])
 		{
 			MPI_Recv(&ini, 1, MPI_FLOAT, rank - 1, 0, MPI_COMM_WORLD, &status);
 		}
+		// if (rank != 0)
+		// MPI_Sendrecv(&layer_copy[0], 1,MPI_FLOAT,rank-1, 0, &ini, 1, MPI_FLOAT, rank-1, 0, MPI_COMM_WORLD, &status );
+		// if (rank != size - 1)
+		// MPI_Sendrecv(&layer_copy[local_layer_size-1], 1,MPI_FLOAT,rank+1, 0, &fin, 1, MPI_FLOAT, rank+1, 0, MPI_COMM_WORLD, &status );
+
 		if (local_layer_size == 1)
 		{
 			if (rank != 0 && rank != size - 1)
@@ -293,9 +303,8 @@ int main(int argc, char *argv[])
 		}
 		printf("\n"); */
 
-
-		local.valor = 0;
-		local.posicion = 0;
+		local[i].valor = 0;
+		local[i].posicion = 0;
 		// for (int x = 0; x < local_layer_size; x++)
 		// {
 		// 	printf("[%d] %d, %lf\n", rank, x + desplazamiento, miniLayer[x]);
@@ -321,22 +330,28 @@ int main(int argc, char *argv[])
 		{
 			//printf(" [%d] %lf %d\n",rank, miniLayer[k], k+desplazamiento);
 			/* Comprobar solo maximos locales */
-			if (miniLayer[k] > local.valor)
+			if (miniLayer[k] > local[i].valor)
 			{
-				local.valor = miniLayer[k];
-				local.posicion = k + desplazamiento;
+				local[i].valor = miniLayer[k];
+				local[i].posicion = k + desplazamiento;
 			}
 		}
 
-		MPI_Reduce(&local, &global, 1, MPI_FLOAT_INT, MPI_MAXLOC, ROOT_RANK, MPI_COMM_WORLD);
+		// MPI_Reduce(&local, &global, 1, MPI_FLOAT_INT, MPI_MAXLOC, ROOT_RANK, MPI_COMM_WORLD);
 
-		if (rank == 0)
-		{
-			maximos[i] = global.valor;
-			posiciones[i] = global.posicion;
-		}
+		// if (rank == 0)
+		// {
+		// 	maximos[i] = global.valor;
+		// 	posiciones[i] = global.posicion;
+		// }
 	}
 
+	MPI_Reduce(&local, &global, num_storms, MPI_FLOAT_INT, MPI_MAXLOC, ROOT_RANK, MPI_COMM_WORLD);
+	for (i = 0; i < num_storms; i++)
+	{
+		maximos[i] = global[i].valor;
+		posiciones[i] = global[i].posicion;
+	}
 	/* FINAL: No optimizar/paralelizar por debajo de este punto */
 	/* 5. Final de medida de tiempo */
 	// MPI_Barrier(MPI_COMM_WORLD);
