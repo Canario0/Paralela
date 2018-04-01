@@ -234,11 +234,11 @@ int main(int argc, char *argv[])
 				//printf("Posicion: %d", posicion - (k + rank * (local_layer_size)));
 				//fflush(stdout);
 
-				energia_k = energia / raiz[abs(posicion - (k + desplazamiento))];
+				// energia_k = energia / raiz[abs(posicion - (k + desplazamiento))];
 
 				// /* 5. No sumar si el valor absoluto es menor que umbral */
-				if (energia_k >= UMBRAL)
-					miniLayer[k] = miniLayer[k] + energia_k;
+				if ((energia / raiz[abs(posicion - (k + desplazamiento))]) >= UMBRAL)
+					miniLayer[k] = miniLayer[k] + (energia / raiz[abs(posicion - (k + desplazamiento))]);
 			}
 		}
 		// MPI_Barrier(MPI_COMM_WORLD);
@@ -257,11 +257,13 @@ int main(int argc, char *argv[])
 		fin = 0;
 		MPI_Request inicioR;
 		MPI_Request finR;
-		if(rank!=0){
+		if (rank != 0)
+		{
 			MPI_Isend(&miniLayer[0], 1, MPI_FLOAT, rank - 1, 0, MPI_COMM_WORLD, &inicioR);
 			MPI_Irecv(&ini, 1, MPI_FLOAT, rank - 1, 0, MPI_COMM_WORLD, &inicioR);
 		}
-		if(rank!=size-1){
+		if (rank != size - 1)
+		{
 			MPI_Isend(&miniLayer[local_layer_size - 1], 1, MPI_FLOAT, rank + 1, 0, MPI_COMM_WORLD, &finR);
 			MPI_Irecv(&fin, 1, MPI_FLOAT, rank + 1, 0, MPI_COMM_WORLD, &finR);
 		}
@@ -269,8 +271,8 @@ int main(int argc, char *argv[])
 		layer_temp = layer_copy;
 		layer_copy = miniLayer;
 		miniLayer = layer_temp;
-		miniLayer[0]=layer_copy[0];
-		miniLayer[local_layer_size-1]=layer_copy[local_layer_size-1];
+		miniLayer[0] = layer_copy[0];
+		miniLayer[local_layer_size - 1] = layer_copy[local_layer_size - 1];
 
 		// ini = 0;
 		// fin = 0;
@@ -287,10 +289,12 @@ int main(int argc, char *argv[])
 		// {
 		// 	MPI_Recv(&ini, 1, MPI_FLOAT, rank - 1, 0, MPI_COMM_WORLD, &status);
 		// }
-		if(rank!=0){
+		if (rank != 0)
+		{
 			MPI_Wait(&inicioR, MPI_STATUS_IGNORE);
 		}
-		if(rank!=size-1){
+		if (rank != size - 1)
+		{
 			MPI_Wait(&finR, MPI_STATUS_IGNORE);
 		}
 		// if (rank != 0)
@@ -320,31 +324,31 @@ int main(int argc, char *argv[])
 		// {
 		// 	printf("Rank: %d, Valor %f, Posicion: %d\n", rank, miniLayer[j], j + desplazamiento);
 		// 	fflush(stdout);
-		// } 
-
+		// }
+		inicio = (rank == 0) ? 1 : 0;
+		final = (rank == size - 1) ? local_layer_size - 1 : local_layer_size;
 		local[i].valor = 0;
-		local[i].posicion = 0;
 		// for (int x = 0; x < local_layer_size; x++)
 		// {
 		// 	printf("[%d] %d, %lf\n", rank, x + desplazamiento, miniLayer[x]);
 		// 	fflush(stdout);
 		// }
 
-		if (rank == 0)
-		{
-			inicio = 1;
-			final = local_layer_size;
-		}
-		else if (rank == size - 1)
-		{
-			inicio = 0;
-			final = local_layer_size - 1;
-		}
-		else
-		{
-			inicio = 0;
-			final = local_layer_size;
-		}
+		// if (rank == 0)
+		// {
+		// 	inicio = 1;
+		// 	final = local_layer_size;
+		// }
+		// else if (rank == size - 1)
+		// {
+		// 	inicio = 0;
+		// 	final = local_layer_size - 1;
+		// }
+		// else
+		// {
+		// 	inicio = 0;
+		// 	final = local_layer_size;
+		// }
 		for (k = inicio; k < final; k++)
 		{
 			//printf(" [%d] %lf %d\n",rank, miniLayer[k], k+desplazamiento);
@@ -371,17 +375,7 @@ int main(int argc, char *argv[])
 		maximos[i] = global[i].valor;
 		posiciones[i] = global[i].posicion;
 	}
-	/* FINAL: No optimizar/paralelizar por debajo de este punto */
-	/* 5. Final de medida de tiempo */
-	// MPI_Barrier(MPI_COMM_WORLD);
-	// if (rank == ROOT_RANK)
-	// {
-	// 	printf("%d\n", layer_size);
-	// 	fflush(stdout);
-	// }
 
-	// printf("[%d] %d ", rank, desplazamiento);
-	// fflush(stdout);
 	free(raiz);
 	free(miniLayer);
 	free(layer_copy);
