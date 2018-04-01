@@ -207,7 +207,6 @@ int main(int argc, char *argv[])
 				}
 			}
 
-
 			/* 4.2. Relajacion entre tormentas de particulas */
 			/* 4.2.1. Copiar valores a capa auxiliar */
 			for (k = 0; k < layer_size; k++)
@@ -217,12 +216,11 @@ int main(int argc, char *argv[])
 			for (k = 1; k < layer_size - 1; k++)
 				layer[k] = (layer_copy[k - 1] + layer_copy[k] + layer_copy[k + 1]) / 3;
 
-			for (j = 0; j < layer_size; j++)
-			{
-				printf("Valor %f, Posicion: %d\n", layer[j], j);
-				fflush(stdout);
-			}
-
+			// for (j = 0; j < layer_size; j++)
+			// {
+			// 	printf("Valor %f, Posicion: %d\n", layer[j], j);
+			// 	fflush(stdout);
+			// }
 			/* 4.3. Localizar maximo */
 			for (k = 1; k < layer_size - 1; k++)
 			{

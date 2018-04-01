@@ -170,6 +170,7 @@ int main(int argc, char *argv[])
 	// }
 	/* 3. Reservar memoria para las capas e inicializar a cero */
 	float *layer_copy = (float *)malloc(sizeof(float) * local_layer_size);
+	float *layer_temp;
 
 	if (miniLayer == NULL || layer_copy == NULL)
 	{
@@ -198,8 +199,7 @@ int main(int argc, char *argv[])
 	} local[num_storms], global[num_storms];
 
 	for (int i = 0; i < layer_size; i++)
-		raiz[i] = 0.0;//sqrtf(i + 1);
-	float aux;
+		raiz[i] = sqrtf(i + 1);
 	/* 4. Fase de bombardeos */
 	for (i = 0; i < num_storms; i++)
 	{
@@ -234,13 +234,7 @@ int main(int argc, char *argv[])
 				//printf("Posicion: %d", posicion - (k + rank * (local_layer_size)));
 				//fflush(stdout);
 
-				if(raiz[abs(posicion - (k + desplazamiento))]==0){
-					aux = raiz[abs(posicion - (k + desplazamiento))]=sqrtf(abs(posicion - (k + desplazamiento)));
-				}else{
-					aux = raiz[abs(posicion - (k + desplazamiento))];
-				}
-				energia_k = energia / aux;
-				energia_k = energia / aux;
+				energia_k = energia / raiz[abs(posicion - (k + desplazamiento))];
 
 				// /* 5. No sumar si el valor absoluto es menor que umbral */
 				if (energia_k >= UMBRAL)
@@ -257,8 +251,14 @@ int main(int argc, char *argv[])
 
 		/* 4.2. Relajacion entre tormentas de particulas */
 		/* 4.2.1. Copiar valores a capa auxiliar */
-		for (k = 0; k < local_layer_size; k++)
-			layer_copy[k] = miniLayer[k];
+		// for (k = 0; k < local_layer_size; k++)
+		// 	layer_copy[k] = miniLayer[k];
+
+		layer_temp = layer_copy;
+		layer_copy = miniLayer;
+		miniLayer = layer_temp;
+		miniLayer[0]=layer_copy[0];
+		miniLayer[local_layer_size-1]=layer_copy[local_layer_size-1];
 
 		ini = 0;
 		fin = 0;
@@ -297,13 +297,12 @@ int main(int argc, char *argv[])
 			miniLayer[k] = (layer_copy[k - 1] + layer_copy[k] + layer_copy[k + 1]) / 3;
 
 		//MPI_Gather(miniLayer, local_layer_size, MPI_FLOAT, layer, local_layer_size, MPI_FLOAT, ROOT_RANK, MPI_COMM_WORLD);
-		/* MPI_Barrier(MPI_COMM_WORLD);
-		for (j = 0; j < local_layer_size; j++)
-		{
-			printf("Rank: %d, Valor %f, Posicion: %d\n", rank, miniLayer[j], j + desplazamiento);
-			fflush(stdout);
-		}
-		printf("\n"); */
+		//  MPI_Barrier(MPI_COMM_WORLD);
+		// for (j = 0; j < local_layer_size; j++)
+		// {
+		// 	printf("Rank: %d, Valor %f, Posicion: %d\n", rank, miniLayer[j], j + desplazamiento);
+		// 	fflush(stdout);
+		// } 
 
 		local[i].valor = 0;
 		local[i].posicion = 0;
