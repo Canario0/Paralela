@@ -253,6 +253,18 @@ int main(int argc, char *argv[])
 		/* 4.2.1. Copiar valores a capa auxiliar */
 		// for (k = 0; k < local_layer_size; k++)
 		// 	layer_copy[k] = miniLayer[k];
+		ini = 0;
+		fin = 0;
+		MPI_Request inicioR;
+		MPI_Request finR;
+		if(rank!=0){
+			MPI_Isend(&miniLayer[0], 1, MPI_FLOAT, rank - 1, 0, MPI_COMM_WORLD, &inicioR);
+			MPI_Irecv(&ini, 1, MPI_FLOAT, rank - 1, 0, MPI_COMM_WORLD, &inicioR);
+		}
+		if(rank!=size-1){
+			MPI_Isend(&miniLayer[local_layer_size - 1], 1, MPI_FLOAT, rank + 1, 0, MPI_COMM_WORLD, &finR);
+			MPI_Irecv(&fin, 1, MPI_FLOAT, rank + 1, 0, MPI_COMM_WORLD, &finR);
+		}
 
 		layer_temp = layer_copy;
 		layer_copy = miniLayer;
@@ -260,20 +272,26 @@ int main(int argc, char *argv[])
 		miniLayer[0]=layer_copy[0];
 		miniLayer[local_layer_size-1]=layer_copy[local_layer_size-1];
 
-		ini = 0;
-		fin = 0;
-		/* 4.2.2. Actualizar capa, menos los extremos, usando valores del array auxiliar */
-		if (rank != 0)
-			MPI_Send(&layer_copy[0], 1, MPI_FLOAT, rank - 1, 0, MPI_COMM_WORLD);
+		// ini = 0;
+		// fin = 0;
+		// /* 4.2.2. Actualizar capa, menos los extremos, usando valores del array auxiliar */
+		// if (rank != 0)
+		// 	MPI_Send(&layer_copy[0], 1, MPI_FLOAT, rank - 1, 0, MPI_COMM_WORLD);
 
-		if (rank != size - 1)
-		{
-			MPI_Recv(&fin, 1, MPI_FLOAT, rank + 1, 0, MPI_COMM_WORLD, &status);
-			MPI_Send(&layer_copy[local_layer_size - 1], 1, MPI_FLOAT, rank + 1, 0, MPI_COMM_WORLD);
+		// if (rank != size - 1)
+		// {
+		// 	MPI_Recv(&fin, 1, MPI_FLOAT, rank + 1, 0, MPI_COMM_WORLD, &status);
+		// 	MPI_Send(&layer_copy[local_layer_size - 1], 1, MPI_FLOAT, rank + 1, 0, MPI_COMM_WORLD);
+		// }
+		// if (rank != 0)
+		// {
+		// 	MPI_Recv(&ini, 1, MPI_FLOAT, rank - 1, 0, MPI_COMM_WORLD, &status);
+		// }
+		if(rank!=0){
+			MPI_Wait(&inicioR, MPI_STATUS_IGNORE);
 		}
-		if (rank != 0)
-		{
-			MPI_Recv(&ini, 1, MPI_FLOAT, rank - 1, 0, MPI_COMM_WORLD, &status);
+		if(rank!=size-1){
+			MPI_Wait(&finR, MPI_STATUS_IGNORE);
 		}
 		// if (rank != 0)
 		// MPI_Sendrecv(&layer_copy[0], 1,MPI_FLOAT,rank-1, 0, &ini, 1, MPI_FLOAT, rank-1, 0, MPI_COMM_WORLD, &status );
