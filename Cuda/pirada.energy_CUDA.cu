@@ -79,7 +79,7 @@
     // if(0 < gid && gid < layer_size - 1){
     if ( gid < layer_size ){
         sdata[lid*2] = layer[gid];
-        sdata[lid*2+1] = (float) gid;
+        sdata[lid*2+1] = (int) gid;
     }else{
         sdata[lid*2] = 0.0f;
         sdata[lid*2+1] = 0;
@@ -109,7 +109,7 @@
     if(gid == 0){
         maximos[i] = maximosTemp[0];
         posiciones[i] = (int) maximosTemp[1];
-         //printf("%d::%g %d, ", gridDim.x, maximosTemp[0], (int) maximosTemp[1]);
+        // printf("%d::%g %d, ", gridDim.x, maximosTemp[0], (int) maximosTemp[1]);
 
         for(int j = 1; j < gridDim.x; j++) {
             // printf("%g %d, ", maximosTemp[j*2], (int) maximosTemp[j*2+1]);
