@@ -175,7 +175,7 @@
      
      /* 4. Fase de bombardeos */
      for( i=0; i<num_storms; i++) {
- 
+        cudaMemcpy(dlayer,layer, sizeof(float) * layer_size,cudaMemcpyHostToDevice);
          /* 4.1. Suma energia de impactos */
          /* Para cada particula */
          for( j=0; j<storms[i].size; j++ ) {
@@ -186,7 +186,7 @@
  
              /* Para cada posicion de la capa */
                  /* Actualizar posicion */
-            actualiza<<<gridShapeGpuFunc1,bloqShapeGpuFunc1>>>( layer, posicion, energia, layer_size );
+            actualiza<<<gridShapeGpuFunc1,bloqShapeGpuFunc1>>>( dlayer, posicion, energia, layer_size );
 
          }
          cudaMemcpy(layer, dlayer, sizeof(float) * layer_size,cudaMemcpyDeviceToHost);
