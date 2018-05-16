@@ -24,10 +24,15 @@
  
  /* ESTA FUNCION PUEDE SER MODIFICADA */
  /* Funcion para actualizar una posicion de la capa */
- void actualiza( float *layer, int k, int pos, float energia ) {
+ __global__ void actualiza( float *layer, int pos,float energia , int tam ) {
+     int hilosporbloque = blockDim.x * blockDim.y;
+     int idhilo = threadIdx.x + blockDim.x + threadIdx.y;
+     int idbloque = blockIdx.x + blockIdx.y * blockIdx.y;
+     int index = idbloque * hilosporbloque + idhilo;
      /* 1. Calcular valor absoluto de la distancia entre el
          punto de impacto y el punto k de la capa */
-     int distancia = pos - k;
+    if(index< tam){
+    int distancia = pos - index;
      if ( distancia < 0 ) distancia = - distancia;
  
      /* 2. El punto de impacto tiene distancia 1 */
@@ -42,8 +47,9 @@
      float energia_k = energia / atenuacion;
  
      /* 5. No sumar si el valor absoluto es menor que umbral */
-     if ( energia_k >= UMBRAL || energia_k <= -UMBRAL )
-         layer[k] = layer[k] + energia_k;
+     if ( energia_k >= UMBRAL )
+         layer[index] = layer[index] + energia_k;
+    }
  }
  
  
@@ -154,6 +160,11 @@
  
      /* 3. Reservar memoria para las capas e inicializar a cero */
      float *layer = (float *)malloc( sizeof(float) * layer_size );
+     float *dlayer;
+     cudaMalloc((void**)&dlayer,sizeof(float) * layer_size);
+     dim3 gridShapeGpuFunc1(layer_size/256+layer_size%256, 1);
+     dim3 bloqShapeGpuFunc1(256, 1);
+     
      float *layer_copy = (float *)malloc( sizeof(float) * layer_size );
      if ( layer == NULL || layer_copy == NULL ) {
          fprintf(stderr,"Error: Allocating the layer memory\n");
@@ -174,10 +185,8 @@
              int posicion = storms[i].posval[j*2];
  
              /* Para cada posicion de la capa */
-             for( k=0; k<layer_size; k++ ) {
                  /* Actualizar posicion */
-                 actualiza( layer, k, posicion, energia );
-             }
+            actualiza( layer, k, posicion, energia );
          }
  
          /* 4.2. Relajacion entre tormentas de particulas */
