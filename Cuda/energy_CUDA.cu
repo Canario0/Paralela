@@ -25,13 +25,14 @@
  /* ESTA FUNCION PUEDE SER MODIFICADA */
  /* Funcion para actualizar una posicion de la capa */
  __global__ void actualiza( float *layer, int pos,float energia , int tam ) {
-     long x = blockDim.y * blockIdx.y + threadIdx.y;
-     long y = blockDim.x * blockIdx.x + threadIdx.x;
-     long index = x * gridDim.x + y;
+    //  long x = blockDim.y * blockIdx.y + threadIdx.y;
+    //  long y = blockDim.x * blockIdx.x + threadIdx.x;
+    //  long index = x * gridDim.x + y;
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
      /* 1. Calcular valor absoluto de la distancia entre el
          punto de impacto y el punto k de la capa */
     if(index< tam){
-    long distancia = pos - index;
+    int distancia = pos - index;
      if ( distancia < 0 ) distancia = - distancia;
  
      /* 2. El punto de impacto tiene distancia 1 */
@@ -50,7 +51,40 @@
          layer[index] = layer[index] + energia_k;
     }
  }
- 
+
+ __global__ void relaja(float *layer, float *layer_copy, int tam){
+    // long x = blockDim.y * blockIdx.y + threadIdx.y;
+    // long y = blockDim.x * blockIdx.x + threadIdx.x;
+    // long k = x * gridDim.x + y;
+    int k = blockIdx.x * blockDim.x + threadIdx.x;
+    if(0 < k && k< tam-1)
+    layer[k] = ( layer_copy[k-1] + layer_copy[k] + layer_copy[k+1] ) / 3;
+ }
+
+ __global__ void copia(float *layer, float *layer_copy, int tam){
+    // long x = blockDim.y * blockIdx.y + threadIdx.y;
+    // long y = blockDim.x * blockIdx.x + threadIdx.x;
+    // long k = x * gridDim.x + y;
+    int k = blockIdx.x * blockDim.x + threadIdx.x;
+    if(k< tam)
+    layer_copy[k] = layer[k];
+ }
+ __global__ void cMax(float *layer, float *maximos, int *posiciones, int layer_size, int i){
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+        if(index == 0){
+         maximos[i] = 0.0f;
+         posiciones[i] = 0;
+         for(int k=1; k<layer_size-1; k++ ) {
+             /* Comprobar solo maximos locales */
+             if ( layer[k] > layer[k-1] && layer[k] > layer[k+1] ) {
+                 if ( layer[k] > maximos[i] ) {
+                     maximos[i] = layer[k];
+                     posiciones[i] = k;
+                 }
+             }
+         }
+    }
+}
  
  /* FUNCIONES AUXILIARES: No se utilizan dentro de la medida de tiempo, dejar como estan */
  /* Funcion de DEBUG: Imprimir el estado de la capa */
@@ -158,23 +192,29 @@
      /* COMIENZO: No optimizar/paralelizar el main por encima de este punto */
  
      /* 3. Reservar memoria para las capas e inicializar a cero */
+
      float *layer = (float *)malloc( sizeof(float) * layer_size );
      float *dlayer;
+     float *dMaximos;
+     int *dPosiciones;
      cudaMalloc((void**)&dlayer,sizeof(float) * layer_size);
+     cudaMalloc((void**)&dMaximos,sizeof(float) * num_storms);
+     cudaMalloc((void**)&dPosiciones,sizeof(int) * num_storms);
      dim3 gridShapeGpuFunc1(layer_size/256+layer_size%256, 1);
      dim3 bloqShapeGpuFunc1(256, 1);
      
-     float *layer_copy = (float *)malloc( sizeof(float) * layer_size );
+     
+     float *layer_copy;
+     cudaMalloc((void**)&layer_copy,sizeof(float) * layer_size);
      if ( layer == NULL || layer_copy == NULL ) {
          fprintf(stderr,"Error: Allocating the layer memory\n");
          exit( EXIT_FAILURE );
      }
      for( k=0; k<layer_size; k++ ) layer[k] = 0.0f;
-     for( k=0; k<layer_size; k++ ) layer_copy[k] = 0.0f;
-     
+          
      /* 4. Fase de bombardeos */
      for( i=0; i<num_storms; i++) {
-        cudaMemcpy(dlayer,layer, sizeof(float) * layer_size,cudaMemcpyHostToDevice);
+        //cudaMemcpy(dlayer,layer, sizeof(float) * layer_size,cudaMemcpyHostToDevice);
          /* 4.1. Suma energia de impactos */
          /* Para cada particula */
          for( j=0; j<storms[i].size; j++ ) {
@@ -188,28 +228,26 @@
             actualiza<<<gridShapeGpuFunc1,bloqShapeGpuFunc1>>>( dlayer, posicion, energia, layer_size );
 
          }
-         cudaMemcpy(layer, dlayer, sizeof(float) * layer_size,cudaMemcpyDeviceToHost);
+         //cudaMemcpy(layer, dlayer, sizeof(float) * layer_size,cudaMemcpyDeviceToHost);
  
          /* 4.2. Relajacion entre tormentas de particulas */
          /* 4.2.1. Copiar valores a capa auxiliar */
-         for( k=0; k<layer_size; k++ ) 
-             layer_copy[k] = layer[k];
+        //  for( k=0; k<layer_size; k++ ) 
+        //      layer_copy[k] = layer[k];
  
          /* 4.2.2. Actualizar capa, menos los extremos, usando valores del array auxiliar */
-         for( k=1; k<layer_size-1; k++ )
-             layer[k] = ( layer_copy[k-1] + layer_copy[k] + layer_copy[k+1] ) / 3;
- 
+        //  for( k=1; k<layer_size-1; k++ )
+        //    layer[k] = ( layer_copy[k-1] + layer_copy[k] + layer_copy[k+1] ) / 3;  
+        copia<<<gridShapeGpuFunc1,bloqShapeGpuFunc1>>>(dlayer, layer_copy, layer_size);
+        relaja<<<gridShapeGpuFunc1,bloqShapeGpuFunc1>>>(dlayer, layer_copy, layer_size);
+        //cudaMemcpy(layer, dlayer, sizeof(float) * layer_size,cudaMemcpyDeviceToHost);
+        
          /* 4.3. Localizar maximo */
-         for( k=1; k<layer_size-1; k++ ) {
-             /* Comprobar solo maximos locales */
-             if ( layer[k] > layer[k-1] && layer[k] > layer[k+1] ) {
-                 if ( layer[k] > maximos[i] ) {
-                     maximos[i] = layer[k];
-                     posiciones[i] = k;
-                 }
-             }
-         }
+        cMax<<<gridShapeGpuFunc1,bloqShapeGpuFunc1>>>(dlayer, dMaximos, dPosiciones, layer_size, i);
+         cudaDeviceSynchronize();
      }
+    cudaMemcpy(maximos, dMaximos, sizeof(float)*num_storms, cudaMemcpyDeviceToHost); 
+    cudaMemcpy(posiciones, dPosiciones, sizeof(int)*num_storms, cudaMemcpyDeviceToHost); 
  
      /* FINAL: No optimizar/paralelizar por debajo de este punto */
  
