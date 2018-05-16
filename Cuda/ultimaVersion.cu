@@ -226,7 +226,7 @@
          exit( EXIT_FAILURE );
      }
      for( k=0; k<layer_size; k++ ) layer[k] = 0.0f;
-     cudaMemcpy(dlayer,layer, sizeof(float) * layer_size,cudaMemcpyHostToDevice);
+     //cudaMemcpy(dlayer,layer, sizeof(float) * layer_size,cudaMemcpyHostToDevice);
           
      /* 4. Fase de bombardeos */
      for( i=0; i<num_storms; i++) {
