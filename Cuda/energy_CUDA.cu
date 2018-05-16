@@ -25,14 +25,13 @@
  /* ESTA FUNCION PUEDE SER MODIFICADA */
  /* Funcion para actualizar una posicion de la capa */
  __global__ void actualiza( float *layer, int pos,float energia , int tam ) {
-     int hilosporbloque = blockDim.x * blockDim.y;
-     int idhilo = threadIdx.x + blockDim.x + threadIdx.y;
-     int idbloque = blockIdx.x + blockIdx.y * blockIdx.y;
-     int index = idbloque * hilosporbloque + idhilo;
+     long x = blockDim.y * blockIdx.y + threadIdx.y;
+     long y = blockDim.x * blockIdx.x + threadIdx.x;
+     long index = x * gridDim.x + y;
      /* 1. Calcular valor absoluto de la distancia entre el
          punto de impacto y el punto k de la capa */
     if(index< tam){
-    int distancia = pos - index;
+    long distancia = pos - index;
      if ( distancia < 0 ) distancia = - distancia;
  
      /* 2. El punto de impacto tiene distancia 1 */
