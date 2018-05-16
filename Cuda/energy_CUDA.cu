@@ -186,8 +186,10 @@
  
              /* Para cada posicion de la capa */
                  /* Actualizar posicion */
-            actualiza( layer, k, posicion, energia );
+            actualiza<<<gridShapeGpuFunc1,bloqShapeGpuFunc1>>>( layer, posicion, energia, layer_size );
+
          }
+         cudaMemcpy(layer, dlayer, sizeof(float) * layer_size,cudaMemcpyDeviceToHost);
  
          /* 4.2. Relajacion entre tormentas de particulas */
          /* 4.2.1. Copiar valores a capa auxiliar */
