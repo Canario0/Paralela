@@ -70,20 +70,39 @@
     layer_copy[k] = layer[k];
  }
  __global__ void cMax(float *layer, float *maximos, int *posiciones, int layer_size, int i){
+    extern __shared__ float sdata[];
+
     int index = blockIdx.x * blockDim.x + threadIdx.x;
-        if(index == 0){
-         maximos[i] = 0.0f;
-         posiciones[i] = 0;
-         for(int k=1; k<layer_size-1; k++ ) {
-             /* Comprobar solo maximos locales */
-             if ( layer[k] > layer[k-1] && layer[k] > layer[k+1] ) {
-                 if ( layer[k] > maximos[i] ) {
-                     maximos[i] = layer[k];
-                     posiciones[i] = k;
-                 }
-             }
-         }
+    
+    if(0 < index && index < layer_size - 1){
+        sdata[threadIdx.x*2] = layer[index];
+        sdata[threadIdx.x*2+1] = (int) index;
+    }else{
+        sdata[threadIdx.x*2] = 0.0f;
+        sdata[threadIdx.x*2+1] = 0;
     }
+    __syncthreads();
+
+    // do reduction in shared mem
+    for (int s=1; s < blockDim.x; s*=2){
+        int new_index = 2 * s * threadIdx.x;
+
+        if(new_index < blockDim.x){
+            // if ( layer[k] > layer[k-1] && layer[k] > layer[k+1] ) {
+                if ( sdata[new_index*2] > sdata[(new_index+s)*2] ) {
+                    sdata[new_index*2] = sdata[(new_index+s)*2]; // Copy max
+                    sdata[new_index*2+1] = sdata[(new_index+s)*2+1]; // Copy pos
+                }
+            // }
+        }
+        __syncthreads();
+    }
+
+    if(index == 0){
+        maximos[i] = sdata[0];
+        posiciones[i] = (int) sdata[1];
+    }
+
 }
  
  /* FUNCIONES AUXILIARES: No se utilizan dentro de la medida de tiempo, dejar como estan */
@@ -243,7 +262,7 @@
         //cudaMemcpy(layer, dlayer, sizeof(float) * layer_size,cudaMemcpyDeviceToHost);
         
          /* 4.3. Localizar maximo */
-        cMax<<<gridShapeGpuFunc1,bloqShapeGpuFunc1>>>(dlayer, dMaximos, dPosiciones, layer_size, i);
+        cMax<<<gridShapeGpuFunc1,bloqShapeGpuFunc1, 256*2*sizeof(float)>>>(dlayer, dMaximos, dPosiciones, layer_size, i);
          cudaDeviceSynchronize();
      }
     cudaMemcpy(maximos, dMaximos, sizeof(float)*num_storms, cudaMemcpyDeviceToHost); 
