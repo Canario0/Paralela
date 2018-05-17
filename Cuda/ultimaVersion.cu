@@ -57,6 +57,10 @@
     // long y = blockDim.x * blockIdx.x + threadIdx.x;
     // long k = x * gridDim.x + y;
     int k = blockIdx.x * blockDim.x + threadIdx.x;
+    if (k == 0)
+        layer[0] = layer_copy[0];
+    if(k == tam -1)
+	    layer[k] = layer_copy[k];
     if(0 < k && k< tam-1)
     layer[k] = ( layer_copy[k-1] + layer_copy[k] + layer_copy[k+1] ) / 3;
  }
@@ -214,6 +218,7 @@
 
      float *layer = (float *)malloc( sizeof(float) * layer_size );
      float *dlayer;
+     float *aux;
      cudaMalloc((void**)&dlayer,sizeof(float) * layer_size);
      dim3 gridShapeGpuFunc1(layer_size/256+(layer_size%256 ? 1:0), 1);
      dim3 bloqShapeGpuFunc1(256, 1);
@@ -253,7 +258,10 @@
          /* 4.2.2. Actualizar capa, menos los extremos, usando valores del array auxiliar */
         //  for( k=1; k<layer_size-1; k++ )
         //    layer[k] = ( layer_copy[k-1] + layer_copy[k] + layer_copy[k+1] ) / 3;  
-        copia<<<gridShapeGpuFunc1,bloqShapeGpuFunc1>>>(dlayer, layer_copy, layer_size);
+		aux = layer_copy;
+		layer_copy = dlayer;
+		dlayer = aux;
+        //copia<<<gridShapeGpuFunc1,bloqShapeGpuFunc1>>>(dlayer, layer_copy, layer_size);
         relaja<<<gridShapeGpuFunc1,bloqShapeGpuFunc1>>>(dlayer, layer_copy, layer_size);
         cudaMemcpy(layer, dlayer, sizeof(float) * layer_size,cudaMemcpyDeviceToHost);
         
