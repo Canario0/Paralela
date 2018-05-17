@@ -230,7 +230,6 @@
          fprintf(stderr,"Error: Allocating the layer memory\n");
          exit( EXIT_FAILURE );
      }
-     for( k=0; k<layer_size; k++ ) layer[k] = 0.0f;
      //cudaMemcpy(dlayer,layer, sizeof(float) * layer_size,cudaMemcpyHostToDevice);
           
      /* 4. Fase de bombardeos */
