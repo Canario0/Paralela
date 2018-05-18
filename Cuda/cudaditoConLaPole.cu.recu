@@ -31,7 +31,7 @@ typedef struct
 
 /* ESTA FUNCION PUEDE SER MODIFICADA */
 /* Funcion para actualizar una posicion de la capa */
-__global__ void actualiza(float *layer, int pos, float energia, int ini, int fin)
+__global__ void actualiza(float *layer, int pos, float energia, int tam)
 {
     //  long x = blockDim.y * blockIdx.y + threadIdx.y;
     //  long y = blockDim.x * blockIdx.x + threadIdx.x;
@@ -39,8 +39,8 @@ __global__ void actualiza(float *layer, int pos, float energia, int ini, int fin
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     /* 1. Calcular valor absoluto de la distancia entre el
          punto de impacto y el punto k de la capa */
-    if (index < ini || index >= fin) return;
-    
+    if (index < tam)
+    {
         int distancia = pos - index;
         if (distancia < 0)
             distancia = -distancia;
@@ -59,7 +59,7 @@ __global__ void actualiza(float *layer, int pos, float energia, int ini, int fin
         /* 5. No sumar si el valor absoluto es menor que umbral */
         if (energia_k >= UMBRAL)
             layer[index] = layer[index] + energia_k;
-    
+    }
 }
 
 __global__ void relaja(float *layer, float *layer_copy, int tam)
@@ -312,13 +312,10 @@ int main(int argc, char *argv[])
             float energia = (float)storms[i].posval[j * 2 + 1] / 1000;
             /* Posicion de impacto */
             int posicion = storms[i].posval[j * 2];
-            int inicio = posicion + 1 - 1000000*(energia*energia);
-			int fin = posicion + 1 + 1000000*(energia*energia);
-			inicio = (inicio<0)?0:(inicio);
-			fin = (fin>layer_size)?layer_size:(fin);    
+
             /* Para cada posicion de la capa */
             /* Actualizar posicion */
-            actualiza<<<gridShapeGpuFunc1, bloqShapeGpuFunc1>>>(dlayer, posicion, energia, inicio, fin);
+            actualiza<<<gridShapeGpuFunc1, bloqShapeGpuFunc1>>>(dlayer, posicion, energia, layer_size);
         }
         //cudaMemcpy(layer, dlayer, sizeof(float) * layer_size,cudaMemcpyDeviceToHost);
 
