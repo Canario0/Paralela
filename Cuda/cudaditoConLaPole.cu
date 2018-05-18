@@ -79,14 +79,24 @@
  }
  __global__ void cMax(float *layer, float *maximos, int *posiciones, Max* maximosTemp, int layer_size, int i){
     extern __shared__ Max sdata[];
-
+    
     int gid = blockIdx.x * blockDim.x + threadIdx.x; // Global idº
     int lid = threadIdx.x; // Local id
-    
+    // if(gid ==0){
+    // for (int g = 0; g < layer_size;g++)
+    // printf("%f |",layer[g]);
+
+    // printf("\n");
+    // }
     if(0 < gid && gid < layer_size-1){
     //if ( gid < layer_size && gid > 0){
+        if ( layer[gid] > layer[gid-1] && layer[gid] > layer[gid+1] ){
         sdata[lid].val = layer[gid];
         sdata[lid].pos = gid;
+        }else{
+           sdata[lid].val = 0.0f;
+         sdata[lid].pos = 0; 
+        }
      }else{
          sdata[lid].val = 0.0f;
          sdata[lid].pos = 0;
@@ -97,6 +107,8 @@
     for (int s=1; s < blockDim.x; s*=2){
         int new_lid = 2 * s * lid;
         if(new_lid < blockDim.x){
+            // if (s ==2 && new_lid <=layer_size)
+            // printf("lid: %d new_lid[%d]: %d new_lid+s[%d]: %d |", lid, new_lid, sdata[new_lid].pos, new_lid +s, sdata[new_lid+s].pos);
             // if ( layer[k] > layer[k-1] && layer[k] > layer[k+1] ) {
                 if ( sdata[new_lid].val < sdata[(new_lid+s)].val ) {
                     sdata[new_lid] = sdata[(new_lid+s)]; // Copy Max
@@ -109,7 +121,7 @@
 
     if(lid == 0){
         maximosTemp[blockIdx.x] = sdata[0];
-        //printf("Maximo: %f y Posición : %d\n",maximosTemp[blockIdx.x].val, maximosTemp[blockIdx.x].pos);
+        //printf("Maximo: %f y Posición : %d candidato: %f y Poisción : %d\n",maximosTemp[blockIdx.x].val, maximosTemp[blockIdx.x].pos, sdata[8].val, sdata[8].pos);
     }
 
     __syncthreads();
@@ -290,22 +302,22 @@
 		dlayer = aux;
         //copia<<<gridShapeGpuFunc1,bloqShapeGpuFunc1>>>(dlayer, layer_copy, layer_size);
         relaja<<<gridShapeGpuFunc1,bloqShapeGpuFunc1>>>(dlayer, layer_copy, layer_size);
-        cudaMemcpy(layer, dlayer, sizeof(float) * layer_size,cudaMemcpyDeviceToHost);
+        // cudaMemcpy(layer, dlayer, sizeof(float) * layer_size,cudaMemcpyDeviceToHost);
         cMax<<<gridShapeGpuFunc1,bloqShapeGpuFunc1, bloqShapeGpuFunc1.x*sizeof(Max)>>>(dlayer, dMaximos, dPosiciones, dMaximosTemp, layer_size, i);
          /* 4.3. Localizar maximo */
-         for( k=1; k<layer_size-1; k++ ) {
-			/* Comprobar solo maximos locales */
-			if ( layer[k] > layer[k-1] && layer[k] > layer[k+1] ) {
-				if ( layer[k] > maximos[i] ) {
-					maximos[i] = layer[k];
-					posiciones[i] = k;
-				}
-			}
-		}
+        //  for( k=1; k<layer_size-1; k++ ) {
+		// 	/* Comprobar solo maximos locales */
+		// 	if ( layer[k] > layer[k-1] && layer[k] > layer[k+1] ) {
+		// 		if ( layer[k] > maximos[i] ) {
+		// 			maximos[i] = layer[k];
+		// 			posiciones[i] = k;
+		// 		}
+		// 	}
+		// }
      }
- 
-for (i=0; i<num_storms; i++)
-         printf(" %d %f", posiciones[i], maximos[i] );
+//  cudaDeviceSynchronize();
+// for (i=0; i<num_storms; i++)
+//          printf(" %d %f", posiciones[i], maximos[i] );
  cudaMemcpy(maximos, dMaximos, sizeof(float)*num_storms, cudaMemcpyDeviceToHost); 
     cudaMemcpy(posiciones, dPosiciones, sizeof(int)*num_storms, cudaMemcpyDeviceToHost); 
      /* FINAL: No optimizar/paralelizar por debajo de este punto */
