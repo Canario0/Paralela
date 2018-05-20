@@ -85,6 +85,10 @@ __global__ void copia(float *layer, float *layer_copy, int tam)
     if (k < tam)
         layer_copy[k] = layer[k];
 }
+
+__global__ void iniciali
+
+
 __global__ void cMax(float *layer, float *layer_copy, Max *maximosTemp, int layer_size, int i)
 {
     extern __shared__ Max sdata[];
@@ -325,7 +329,8 @@ int main(int argc, char *argv[])
     cudaMalloc((void **)&dlayer, sizeof(float) * layer_size);
     dim3 gridShapeGpuFunc1(layer_size / BLOCK_SIZE + (layer_size % BLOCK_SIZE ? 1 : 0), 1);
     dim3 bloqShapeGpuFunc1(BLOCK_SIZE, 1);
-    Max *maximosTemp = (Max *)malloc(sizeof(Max) * gridShapeGpuFunc1.x);
+    Max *maximosTemp ;
+    cudaMallocHost(&maximosTemp,sizeof(Max) * gridShapeGpuFunc1.x);
     cudaMalloc((void **)&dMaximosTemp, sizeof(Max) * gridShapeGpuFunc1.x);
 
     float *layer_copy;
