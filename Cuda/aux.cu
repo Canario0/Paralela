@@ -126,7 +126,7 @@ __global__ void cMax(float *layer, float *layer_copy, Max *maximosTemp, int laye
     __syncthreads();
 
     // do reduction in shared mem
-    for (int s = blockDim.x/2 ; s > 0; s >>= 1)
+    for (int s = blockDim.x / 2; s > 32; s >>= 1)
     {
         if (lid < s)
         {
@@ -141,7 +141,38 @@ __global__ void cMax(float *layer, float *layer_copy, Max *maximosTemp, int laye
         }
         __syncthreads();
     }
+    if (lid < 32)
+    {
+        if (sdata[lid].val < sdata[(lid + 32)].val)
+        {
+            sdata[lid] = sdata[(lid + 32)]; // Copy Max
+        }
 
+        if (sdata[lid].val < sdata[(lid + 16)].val)
+        {
+            sdata[lid] = sdata[(lid + 16)]; // Copy Max
+        }
+
+        if (sdata[lid].val < sdata[(lid + 8)].val)
+        {
+            sdata[lid] = sdata[(lid + 8)]; // Copy Max
+        }
+
+        if (sdata[lid].val < sdata[(lid + 4)].val)
+        {
+            sdata[lid] = sdata[(lid + 4)]; // Copy Max
+        }
+
+        if (sdata[lid].val < sdata[(lid + 2)].val)
+        {
+            sdata[lid] = sdata[(lid + 2)]; // Copy Max
+        }
+
+        if (sdata[lid].val < sdata[(lid + 1)].val)
+        {
+            sdata[lid] = sdata[(lid + 1)]; // Copy Max
+        }
+    }
     if (lid == 0)
     {
         maximosTemp[blockIdx.x] = sdata[0];
@@ -309,52 +340,55 @@ int main(int argc, char *argv[])
     /* 4. Fase de bombardeos */
     for (i = 0; i < num_storms; i++)
     {
-        if (i%2==0){
-        /* 4.1. Suma energia de impactos */
-        /* Para cada particula */
-        for (j = 0; j < storms[i].size; j++)
+        if (i % 2 == 0)
         {
-            /* Energia de impacto (en milesimas) */
-            float energia = (float)storms[i].posval[j * 2 + 1] / 1000;
-            /* Posicion de impacto */
-            int posicion = storms[i].posval[j * 2];
-
-            /* Para cada posicion de la capa */
-            /* Actualizar posicion */
-            actualiza<<<gridShapeGpuFunc1, bloqShapeGpuFunc1>>>(dlayer, posicion, energia, layer_size);
-        }
-        //cudaMemcpy(layer, dlayer, sizeof(float) * layer_size,cudaMemcpyDeviceToHost);
-
-        /* 4.2. Relajacion entre tormentas de particulas */
-        /* 4.2.1. Copiar valores a capa auxiliar */
-        //  for( k=0; k<layer_size; k++ )
-        //      layer_copy[k] = layer[k];
-
-        /* 4.2.2. Actualizar capa, menos los extremos, usando valores del array auxiliar */
-        //  for( k=1; k<layer_size-1; k++ )
-        //    layer[k] = ( layer_copy[k-1] + layer_copy[k] + layer_copy[k+1] ) / 3;
-        // aux = layer_copy;
-        // layer_copy = dlayer;
-        // dlayer = aux;
-        //copia<<<gridShapeGpuFunc1,bloqShapeGpuFunc1>>>(dlayer, layer_copy, layer_size);
-        //relaja<<<gridShapeGpuFunc1, bloqShapeGpuFunc1>>>(dlayer, layer_copy, layer_size);
-        
-        cMax<<<gridShapeGpuFunc1, bloqShapeGpuFunc1, bloqShapeGpuFunc1.x * sizeof(Max)>>>(layer_copy, dlayer, dMaximosTemp, layer_size, i);
-        }else{
+            /* 4.1. Suma energia de impactos */
+            /* Para cada particula */
             for (j = 0; j < storms[i].size; j++)
-        {
-            /* Energia de impacto (en milesimas) */
-            float energia = (float)storms[i].posval[j * 2 + 1] / 1000;
-            /* Posicion de impacto */
-            int posicion = storms[i].posval[j * 2];
+            {
+                /* Energia de impacto (en milesimas) */
+                float energia = (float)storms[i].posval[j * 2 + 1] / 1000;
+                /* Posicion de impacto */
+                int posicion = storms[i].posval[j * 2];
 
-            /* Para cada posicion de la capa */
-            /* Actualizar posicion */
-            actualiza<<<gridShapeGpuFunc1, bloqShapeGpuFunc1>>>(layer_copy, posicion, energia, layer_size);
+                /* Para cada posicion de la capa */
+                /* Actualizar posicion */
+                actualiza<<<gridShapeGpuFunc1, bloqShapeGpuFunc1>>>(dlayer, posicion, energia, layer_size);
+            }
+            //cudaMemcpy(layer, dlayer, sizeof(float) * layer_size,cudaMemcpyDeviceToHost);
+
+            /* 4.2. Relajacion entre tormentas de particulas */
+            /* 4.2.1. Copiar valores a capa auxiliar */
+            //  for( k=0; k<layer_size; k++ )
+            //      layer_copy[k] = layer[k];
+
+            /* 4.2.2. Actualizar capa, menos los extremos, usando valores del array auxiliar */
+            //  for( k=1; k<layer_size-1; k++ )
+            //    layer[k] = ( layer_copy[k-1] + layer_copy[k] + layer_copy[k+1] ) / 3;
+            // aux = layer_copy;
+            // layer_copy = dlayer;
+            // dlayer = aux;
+            //copia<<<gridShapeGpuFunc1,bloqShapeGpuFunc1>>>(dlayer, layer_copy, layer_size);
+            //relaja<<<gridShapeGpuFunc1, bloqShapeGpuFunc1>>>(dlayer, layer_copy, layer_size);
+
+            cMax<<<gridShapeGpuFunc1, bloqShapeGpuFunc1, bloqShapeGpuFunc1.x * sizeof(Max)>>>(layer_copy, dlayer, dMaximosTemp, layer_size, i);
         }
+        else
+        {
+            for (j = 0; j < storms[i].size; j++)
+            {
+                /* Energia de impacto (en milesimas) */
+                float energia = (float)storms[i].posval[j * 2 + 1] / 1000;
+                /* Posicion de impacto */
+                int posicion = storms[i].posval[j * 2];
+
+                /* Para cada posicion de la capa */
+                /* Actualizar posicion */
+                actualiza<<<gridShapeGpuFunc1, bloqShapeGpuFunc1>>>(layer_copy, posicion, energia, layer_size);
+            }
             cMax<<<gridShapeGpuFunc1, bloqShapeGpuFunc1, bloqShapeGpuFunc1.x * sizeof(Max)>>>(dlayer, layer_copy, dMaximosTemp, layer_size, i);
         }
-        
+
         cudaMemcpy(maximosTemp, dMaximosTemp, sizeof(Max) * gridShapeGpuFunc1.x, cudaMemcpyDeviceToHost);
         maximos[i] = maximosTemp[0].val;
         posiciones[i] = maximosTemp[0].pos;
