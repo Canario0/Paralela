@@ -57,17 +57,6 @@ __global__ void actualiza(float *layer, int pos, float energia, int tam)
     }
 }
 
-__global__ void relaja(float *layer, float *layer_copy, int tam)
-{
-    int k = blockIdx.x * blockDim.x + threadIdx.x;
-    if (k == 0)
-        layer[0] = layer_copy[0];
-    if (k == tam - 1)
-        layer[k] = layer_copy[k];
-    if (0 < k && k < tam - 1)
-        layer[k] = (layer_copy[k - 1] + layer_copy[k] + layer_copy[k + 1]) / 3;
-}
-
 __global__ void cMax(float *layer, float *layer_copy, Max *maximosTemp, int layer_size)
 {
     extern __shared__ Max sdata[];
